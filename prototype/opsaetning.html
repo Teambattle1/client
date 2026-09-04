@@ -1,0 +1,575 @@
+<title>Sæt portalen live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap">
+<style>
+:root{
+  --paper:#e8e5df; --surface:#faf9f7; --surface2:#f2f0ec;
+  --line:rgba(0,0,0,.09); --line2:rgba(0,0,0,.16);
+  --ink:#16140f; --muted:#5f5b55; --dim:#8e8a84;
+  --accent:#d4640a; --accent-l:#e87520; --accent-d:#b85406;
+  --accent-soft:rgba(212,100,10,.10);
+  --green:#12805e; --green-soft:rgba(18,128,94,.10); --green-line:rgba(18,128,94,.45);
+  --gold:#8f7118; --gold-soft:rgba(143,113,24,.10); --gold-line:rgba(143,113,24,.35);
+  --shadow:0 1px 2px rgba(22,20,15,.05),0 8px 24px rgba(22,20,15,.07);
+  --shadow-a:0 1px 2px rgba(150,70,5,.20),0 8px 18px rgba(150,70,5,.20);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0e0d0b; --surface:#191715; --surface2:#221f1c;
+  --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.18);
+  --ink:#f2eee8; --muted:#b0aaa2; --dim:#8b857d;
+  --accent:#e0700f; --accent-l:#f08428; --accent-d:#c25c07;
+  --accent-soft:rgba(224,112,15,.16);
+  --green:#3cc79a; --green-soft:rgba(60,199,154,.12); --green-line:rgba(60,199,154,.45);
+  --gold:#d8b243; --gold-soft:rgba(216,178,67,.12); --gold-line:rgba(216,178,67,.35);
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 8px 24px rgba(0,0,0,.45);
+  --shadow-a:0 1px 2px rgba(0,0,0,.5),0 8px 18px rgba(0,0,0,.45);
+}}
+:root[data-theme="dark"]{
+  --paper:#0e0d0b; --surface:#191715; --surface2:#221f1c;
+  --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.18);
+  --ink:#f2eee8; --muted:#b0aaa2; --dim:#8b857d;
+  --accent:#e0700f; --accent-l:#f08428; --accent-d:#c25c07;
+  --accent-soft:rgba(224,112,15,.16);
+  --green:#3cc79a; --green-soft:rgba(60,199,154,.12); --green-line:rgba(60,199,154,.45);
+  --gold:#d8b243; --gold-soft:rgba(216,178,67,.12); --gold-line:rgba(216,178,67,.35);
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 8px 24px rgba(0,0,0,.45);
+  --shadow-a:0 1px 2px rgba(0,0,0,.5),0 8px 18px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:'Outfit',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
+  font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;
+  padding:22px 16px 60px}
+h1,h2{font-family:'Playfair Display',Georgia,serif;margin:0;line-height:1.15;text-wrap:balance;font-weight:600}
+p{margin:0}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+a{color:inherit}
+:focus-visible{outline:2.5px solid var(--accent);outline-offset:3px;border-radius:8px}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important}}
+
+.wrap{max-width:680px;margin:0 auto}
+
+/* topkort */
+.top{margin-bottom:26px}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.top h1{font-size:clamp(28px,7vw,40px);letter-spacing:-.015em;margin:8px 0 10px}
+.top p{font-size:15.5px;color:var(--muted);max-width:56ch}
+.bar{margin-top:20px}
+.bar-head{display:flex;justify-content:space-between;align-items:baseline;
+  font-size:12.5px;color:var(--muted);font-weight:500;margin-bottom:7px}
+.bar-head b{color:var(--ink);font-weight:600}
+.bar-track{height:6px;border-radius:99px;background:var(--surface2);border:1px solid var(--line);overflow:hidden}
+.bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent-l));
+  transition:width .45s ease;width:0}
+
+/* trin */
+.step{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden}
+.step.done{border-color:var(--green-line)}
+.step-head{display:flex;gap:14px;align-items:flex-start;padding:18px 18px 14px}
+.num{width:34px;height:34px;border-radius:11px;flex:0 0 auto;display:grid;place-items:center;
+  background:linear-gradient(155deg,var(--accent-l),var(--accent-d));color:#fff;
+  font-weight:700;font-size:16px;box-shadow:var(--shadow-a)}
+.step.done .num{background:var(--green);box-shadow:none}
+.step-head h2{font-size:20px;letter-spacing:-.01em}
+.step-head .why{font-size:13.5px;color:var(--muted);margin-top:4px}
+.step-body{padding:0 18px 18px}
+
+/* delrin */
+.sub{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-top:1px solid var(--line)}
+.sub:first-child{border-top:0;padding-top:4px}
+.tick{width:24px;height:24px;border-radius:8px;flex:0 0 auto;margin-top:1px;
+  border:1.5px solid var(--line2);background:var(--surface2);display:grid;place-items:center;
+  transition:background .15s,border-color .15s}
+.tick svg{opacity:0;transition:opacity .15s}
+.sub.ok .tick{background:var(--green);border-color:var(--green)}
+.sub.ok .tick svg{opacity:1}
+.sub-txt{flex:1;min-width:0}
+.sub.ok .sub-txt>b{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line2)}
+.sub-txt>b{display:block;font-size:15px;font-weight:600}
+.sub-txt span b{font-weight:600;color:var(--ink)}
+.sub-txt span{display:block;font-size:13.5px;color:var(--muted);margin-top:2px}
+
+/* knapper og felter */
+.go{display:inline-flex;align-items:center;gap:8px;margin-top:9px;padding:9px 15px;border-radius:11px;
+  background:linear-gradient(155deg,var(--accent-l),var(--accent-d));color:#fff;
+  font-size:14px;font-weight:600;box-shadow:var(--shadow-a);text-decoration:none}
+.go.quiet{background:none;color:var(--ink);border:1px solid var(--line2);box-shadow:none}
+.val{display:flex;gap:8px;align-items:center;background:var(--surface2);border:1px solid var(--line2);
+  border-radius:10px;padding:8px 10px;margin-top:8px}
+.val code{flex:1;min-width:0;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;
+  overflow-x:auto;white-space:nowrap;color:var(--ink)}
+.copy{flex:0 0 auto;font-size:12.5px;font-weight:600;color:var(--muted);
+  border:1px solid var(--line2);border-radius:8px;padding:5px 10px}
+.copy:hover{background:var(--surface)}
+.obs{display:flex;gap:9px;background:var(--gold-soft);border:1px solid var(--gold-line);
+  border-radius:11px;padding:11px 13px;margin-top:12px;font-size:13.5px;line-height:1.45}
+.obs b{color:var(--ink)}
+.obs-mark{color:var(--gold);font-weight:800;flex:0 0 auto}
+
+/* sql */
+details{margin-top:10px;border:1px solid var(--line2);border-radius:11px;background:var(--surface2);overflow:hidden}
+summary{padding:10px 13px;font-size:13.5px;font-weight:600;cursor:pointer;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"▸ ";color:var(--accent)}
+details[open] summary::before{content:"▾ "}
+pre{margin:0;padding:0 13px 13px;overflow-x:auto;font-family:ui-monospace,Menlo,monospace;
+  font-size:11.5px;line-height:1.5;color:var(--muted)}
+
+/* slut */
+.end{background:var(--green-soft);border:1px solid var(--green-line);
+  border-radius:16px;padding:18px}
+.end h2{font-size:19px;margin-bottom:6px}
+.end p{font-size:14.5px;color:var(--muted)}
+.end ol{margin:10px 0 0;padding-left:20px;font-size:14.5px;color:var(--muted)}
+.end li{margin-bottom:5px}
+.end b{color:var(--ink)}
+.foot{margin-top:26px;font-size:12.5px;color:var(--dim);line-height:1.5}
+.reset{font-size:12.5px;color:var(--dim);text-decoration:underline;margin-top:10px;display:inline-block}
+</style>
+
+<div class="wrap">
+
+  <div class="top">
+    <div class="eyebrow">client.eventday.dk</div>
+    <h1>Sæt portalen live</h1>
+    <p>Tre opgaver. Den første tager to minutter, den sidste venter mest på
+       at internettet opdager sig selv. Hak af undervejs — siden husker hvor
+       du er, også hvis du lukker den.</p>
+    <div class="bar">
+      <div class="bar-head"><span>Sådan går det</span><span><b id="antal">0</b> af 9 hakket af</span></div>
+      <div class="bar-track"><div class="bar-fill" id="fyld"></div></div>
+    </div>
+  </div>
+
+  <!-- ---------- TRIN 1 ---------- -->
+  <section class="step" id="step1">
+    <div class="step-head">
+      <div class="num">1</div>
+      <div>
+        <h2>Læg databasen ind</h2>
+        <p class="why">Portalen har ingen steder at gemme kunderne endnu. Det her opretter dem — og sætter adminkoden til 100408.</p>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <div class="sub" data-id="1a">
+        <div class="tick">✓</div>
+        <div class="sub-txt">
+          <b>Åbn jeres Supabase-projekt</b>
+          <span>Vælg TeamBattle-projektet i listen.</span>
+          <a class="go" href="https://supabase.com/dashboard/projects" target="_blank" rel="noopener">Åbn Supabase →</a>
+        </div>
+      </div>
+
+      <div class="sub" data-id="1b">
+        <div class="tick">✓</div>
+        <div class="sub-txt">
+          <b>Gå til SQL Editor og lav en ny forespørgsel</b>
+          <span>I menuen i venstre side: <b>SQL Editor</b> → <b>New query</b>.</span>
+        </div>
+      </div>
+
+      <div class="sub" data-id="1c">
+        <div class="tick">✓</div>
+        <div class="sub-txt">
+          <b>Indsæt koden og tryk Run</b>
+          <span>Kopiér herunder, sæt ind i det tomme felt, og kør. Der skal stå <b>Success. No rows returned</b>.</span>
+          <button class="go" data-copy="sql">Kopiér hele koden</button>
+          <details>
+            <summary>Se koden (176 linjer)</summary>
+            <pre id="sqlvis"></pre>
+          </details>
+        </div>
+      </div>
+
+      <div class="sub" data-id="1d">
+        <div class="tick">✓</div>
+        <div class="sub-txt">
+          <b>Tjek at det virkede</b>
+          <span>Under <b>Table Editor</b> skal der nu ligge to nye tabeller: <b>portal_clients</b> og <b>portal_config</b>.
+                Den sidste har én linje, hvor der står 100408.</span>
+        </div>
+      </div>
+
+      <div class="obs"><span class="obs-mark">!</span>
+        <span>Du kan trygt køre koden igen, hvis du er i tvivl om den gik igennem.
+              Den laver ikke noget om, der allerede er der — og den sletter aldrig en kunde.</span></div>
+    </div>
+  </section>
+
+  <!-- ---------- TRIN 2 ---------- -->
+  <section class="step" id="step2">
+    <div class="step-head">
+      <div class="num">2</div>
+      <div>
+        <h2>Sæt sitet op på Netlify</h2>
+        <p class="why">Her bygges portalen, og her fortæller du den, hvor databasen står.</p>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <div class="sub" data-id="2a">
+        <div class="tick">✓</div>
+        <div class="sub-txt">
+          <b>Opret sitet ud fra repoet</b>
+          <span><b>Add new site</b> → <b>Import an existing project</b> → GitHub → vælg <b>Teambattle1/client</b>.
+                Byggeindstillingerne udfylder sig selv — de ligger i repoet.</span>
+          <a class="go" href="https://app.netlify.com/start" target="_blank" rel="noopener">Åbn Netlify →</a>
+          <a class="go quiet" href="https://github.com/Teambattle1/client" target="_blank" rel="noopener">Se repoet</a>
+        </div>
+      </div>
+
+      <div class="sub" data-id="2b">
+        <div class="tick">✓</div>
+        <div class="sub-txt">
+          <b>Hent de to værdier i Supabase</b>
+          <span>I Supabase: <b>Project Settings</b> → <b>API</b>. Du skal bruge <b>Project URL</b> og nøglen der hedder <b>anon public</b>.
+                Den nøgle er offentlig med vilje — den ligger i enhver besøgendes browser.</span>
+          <a class="go" href="https://supabase.com/dashboard/project/_/settings/api" target="_blank" rel="noopener">Åbn API-siden →</a>
+        </div>
+      </div>
+
+      <div class="sub" data-id="2c">
+        <div class="tick">✓</div>
+        <div class="sub-txt">
+          <b>Skriv dem ind i Netlify</b>
+          <span>På sitet: <b>Site configuration</b> → <b>Environment variables</b> → <b>Add a variable</b>.
+                Navnene skal staves præcis sådan her:</span>
+          <div class="val"><code>VITE_SUPABASE_URL</code><button class="copy" data-copy="VITE_SUPABASE_URL">Kopiér</button></div>
+          <div class="val"><code>VITE_SUPABASE_ANON_KEY</code><button class="copy" data-copy="VITE_SUPABASE_ANON_KEY">Kopiér</button></div>
+        </div>
+      </div>
+
+      <div class="sub" data-id="2d">
+        <div class="tick">✓</div>
+        <div class="sub-txt">
+          <b>Byg sitet igen</b>
+          <span><b>Deploys</b> → <b>Trigger deploy</b> → <b>Deploy site</b>.</span>
+        </div>
+      </div>
+
+      <div class="obs"><span class="obs-mark">!</span>
+        <span><b>Det sidste hak er ikke til pynt.</b> De to nøgler bages ind, når sitet bygges — så et site,
+              der allerede var bygget, kender dem ikke. Springer du det over, ser portalen helt rigtig ud,
+              men den finder ingen kunder, og du tror databasen er gået galt.</span></div>
+    </div>
+  </section>
+
+  <!-- ---------- TRIN 3 ---------- -->
+  <section class="step" id="step3">
+    <div class="step-head">
+      <div class="num">3</div>
+      <div>
+        <h2>Sæt adressen på</h2>
+        <p class="why">Så portalen ligger på client.eventday.dk og ikke på et tilfældigt Netlify-navn.</p>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <div class="sub" data-id="3a">
+        <div class="tick">✓</div>
+        <div class="sub-txt">
+          <b>Tilføj adressen i Netlify</b>
+          <span>På sitet: <b>Domain management</b> → <b>Add a domain</b> → skriv <b>client.eventday.dk</b>.
+                Netlify svarer med den linje, der skal ind hos jeres DNS.</span>
+          <div class="val"><code>client.eventday.dk</code><button class="copy" data-copy="client.eventday.dk">Kopiér</button></div>
+        </div>
+      </div>
+
+      <div class="sub" data-id="3b">
+        <div class="tick">✓</div>
+        <div class="sub-txt">
+          <b>Læg linjen ind hos jeres DNS</b>
+          <span>Samme sted som <b>flow.eventday.dk</b> og <b>track.eventday.dk</b> er sat op — det er typisk
+                en CNAME, der peger på jeres Netlify-adresse.</span>
+        </div>
+      </div>
+
+      <div class="sub" data-id="3c">
+        <div class="tick">✓</div>
+        <div class="sub-txt">
+          <b>Vent på hængelåsen</b>
+          <span>Netlify henter selv et sikkerhedscertifikat, når DNS er slået igennem. Det tager typisk
+                minutter, men kan tage timer. Der er ikke noget at gøre imens.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- prøv efter ---------- -->
+  <section class="end">
+    <h2>Til sidst: prøv den som en kunde</h2>
+    <p>Fem minutter der fanger alt, hvad der kan være gået galt.</p>
+    <ol>
+      <li>Åbn <b>client.eventday.dk</b> og tast <b>100408</b>. Kundelisten skal åbne.</li>
+      <li>Står der en orange besked om demo-tilstand, mangler nøglerne fra trin 2 — eller sitet er ikke bygget igen.</li>
+      <li>Opret en testkunde. Der skal komme seks cifre og et link frem med det samme.</li>
+      <li>Åbn linket i et privat vindue. Kunden skal se sit event uden at logge ind.</li>
+      <li>Skriv noget under <b>info fra jer</b>, luk vinduet, åbn linket igen. Det skal stadig stå der — så gemmer databasen rigtigt.</li>
+    </ol>
+  </section>
+
+  <p class="foot">
+    Går noget i stå, så sig hvilket trin og hvad der stod på skærmen — så er det til at finde.
+    Adminkoden kan skiftes senere; hvordan står på repoets forside.
+    <br><a class="reset" href="#" id="nulstil">Ryd alle hak</a>
+  </p>
+</div>
+
+<script type="text/plain" id="sqlkilde">-- ---------------------------------------------------------------
+-- Kundeportalen på client.eventday.dk
+--
+-- Kør ÉN gang i Supabase → SQL Editor. Den er skrevet så den kan køres
+-- igen uden at ødelægge noget (if not exists / or replace).
+--
+-- HVORFOR DET SER SÅDAN HER UD:
+-- Portalen har ingen login. Browseren har kun den offentlige anon-nøgle,
+-- og den nøgle ligger i enhver besøgendes browser. Derfor må tabellerne
+-- IKKE kunne læses direkte: så kunne enhver hente hele kundelisten med
+-- telefonnumre og priser. I stedet er der ingen adgangsregler på
+-- tabellerne overhovedet (RLS slået til, nul policies = lukket land), og
+-- al adgang går gennem funktionerne herunder, som selv bestemmer hvad de
+-- svarer på. Kunden kan kun hente NETOP den kode de har. Alt der rører
+-- kundelisten kræver admin-koden, og den tjekkes HER — ikke i browseren.
+-- ---------------------------------------------------------------
+
+-- ---------- tabeller ----------
+
+create table if not exists public.portal_config (
+  key   text primary key,
+  value text not null
+);
+
+create table if not exists public.portal_clients (
+  code       text primary key check (code ~ '^[0-9]{6}$'),
+  data       jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Sorteres på event-datoen i admin-listen.
+create index if not exists portal_clients_event_date_idx
+  on public.portal_clients ((data ->> 'eventDate'));
+
+alter table public.portal_config  enable row level security;
+alter table public.portal_clients enable row level security;
+
+-- Ingen policies = ingen direkte adgang for anon. Med vilje.
+-- Tilføj ALDRIG en "anon kan læse alt"-policy her.
+
+-- Admin-koden. Skift den ved at køre linjen igen med en anden værdi.
+insert into public.portal_config (key, value)
+values ('admin_code', '100408')
+on conflict (key) do nothing;
+
+-- ---------- kundens egen adgang ----------
+
+-- Hent ét projekt ud fra koden. Svarer null hvis koden ikke findes.
+-- Kan kun hente den ene kode der spørges om — aldrig en liste.
+create or replace function public.portal_client_by_code(p_code text)
+returns jsonb
+language sql
+security definer
+set search_path = public, pg_temp
+as $$
+  select c.data || jsonb_build_object('code', c.code)
+  from public.portal_clients c
+  where c.code = p_code
+    and p_code ~ '^[0-9]{6}$';
+$$;
+
+-- Gem det kunden selv udfylder. Rører KUN info-delen, så et gem fra
+-- kunden aldrig kan overskrive pris, program eller kontaktperson.
+create or replace function public.portal_save_info(p_code text, p_info jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if p_code !~ '^[0-9]{6}$' then
+    raise exception 'Ugyldig kode';
+  end if;
+  if jsonb_typeof(p_info) is distinct from 'object' then
+    raise exception 'info skal være et objekt';
+  end if;
+
+  update public.portal_clients
+     set data = jsonb_set(data, '{info}', p_info, true),
+         updated_at = now()
+   where code = p_code;
+end;
+$$;
+
+-- ---------- vores egen adgang ----------
+
+create or replace function public.portal_admin_check(p_code text)
+returns boolean
+language sql
+security definer
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1 from public.portal_config
+    where key = 'admin_code' and value = p_code
+  );
+$$;
+
+create or replace function public.portal_admin_list(p_code text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if not public.portal_admin_check(p_code) then
+    raise exception 'Forkert adminkode';
+  end if;
+
+  return coalesce(
+    (select jsonb_agg(c.data || jsonb_build_object('code', c.code)
+                      order by c.data ->> 'eventDate' nulls last)
+       from public.portal_clients c),
+    '[]'::jsonb
+  );
+end;
+$$;
+
+-- Opretter kunden OG finder en ledig kode. Koden laves her, ikke i
+-- browseren: to der opretter samtidig ville ellers kunne ramme samme tal,
+-- og den sidste ville overskrive den første.
+create or replace function public.portal_admin_create(p_code text, p_payload jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_kode  text;
+  v_admin text;
+  i       int := 0;
+begin
+  if not public.portal_admin_check(p_code) then
+    raise exception 'Forkert adminkode';
+  end if;
+
+  select value into v_admin from public.portal_config where key = 'admin_code';
+
+  loop
+    i := i + 1;
+    v_kode := lpad((100000 + floor(random() * 900000))::int::text, 6, '0');
+
+    -- Admin-koden må aldrig blive en kundekode: så ville kunden lande i
+    -- kundelisten i stedet for på sin egen side.
+    if v_kode is distinct from v_admin
+       and not exists (select 1 from public.portal_clients where code = v_kode) then
+      exit;
+    end if;
+
+    if i > 200 then
+      raise exception 'Kunne ikke finde en ledig kode';
+    end if;
+  end loop;
+
+  insert into public.portal_clients (code, data)
+  values (v_kode, coalesce(p_payload, '{}'::jsonb) - 'code');
+
+  return (select c.data || jsonb_build_object('code', c.code)
+            from public.portal_clients c where c.code = v_kode);
+end;
+$$;
+
+-- ---------- hvem må kalde hvad ----------
+
+revoke all on function public.portal_client_by_code(text) from public;
+revoke all on function public.portal_save_info(text, jsonb) from public;
+revoke all on function public.portal_admin_check(text)      from public;
+revoke all on function public.portal_admin_list(text)       from public;
+revoke all on function public.portal_admin_create(text, jsonb) from public;
+
+grant execute on function public.portal_client_by_code(text)    to anon, authenticated;
+grant execute on function public.portal_save_info(text, jsonb)  to anon, authenticated;
+grant execute on function public.portal_admin_check(text)       to anon, authenticated;
+grant execute on function public.portal_admin_list(text)        to anon, authenticated;
+grant execute on function public.portal_admin_create(text, jsonb) to anon, authenticated;
+</script>
+<script>
+"use strict";
+var NØGLE = 'ed_opsaetning_v1';
+var sql = document.getElementById('sqlkilde').textContent.trim();
+document.getElementById('sqlvis').textContent = sql;
+
+/* Hakkene ligger i browseren, så siden husker hvor man er. Kan den ikke
+   skrive (privat vindue), virker alt stadig — det huskes bare ikke. */
+function læs(){
+  try { return JSON.parse(localStorage.getItem(NØGLE) || '{}') } catch (e) { return {} }
+}
+function skriv(v){
+  try { localStorage.setItem(NØGLE, JSON.stringify(v)) } catch (e) { /* privat vindue */ }
+}
+var hakket = læs();
+
+var FLUEBEN = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19 7"/></svg>';
+
+function tegn(){
+  var alle = document.querySelectorAll('.sub[data-id]');
+  var n = 0;
+  alle.forEach(function(el){
+    var på = !!hakket[el.getAttribute('data-id')];
+    el.classList.toggle('ok', på);
+    if (på) n++;
+  });
+  document.getElementById('antal').textContent = n;
+  document.getElementById('fyld').style.width = Math.round(n / alle.length * 100) + '%';
+
+  ['step1','step2','step3'].forEach(function(id){
+    var s = document.getElementById(id);
+    var i = s.querySelectorAll('.sub[data-id]');
+    var færdige = s.querySelectorAll('.sub.ok').length;
+    s.classList.toggle('done', i.length > 0 && færdige === i.length);
+  });
+}
+
+document.querySelectorAll('.sub[data-id] .tick').forEach(function(t){ t.innerHTML = FLUEBEN });
+
+document.addEventListener('click', function(e){
+  var kopi = e.target.closest('[data-copy]');
+  if (kopi) {
+    var v = kopi.getAttribute('data-copy');
+    var tekst = v === 'sql' ? sql : v;
+    if (navigator.clipboard) navigator.clipboard.writeText(tekst);
+    var før = kopi.textContent;
+    kopi.textContent = 'Kopieret';
+    setTimeout(function(){ kopi.textContent = før }, 1600);
+    return;
+  }
+
+  if (e.target.id === 'nulstil') {
+    e.preventDefault();
+    hakket = {}; skriv(hakket); tegn();
+    return;
+  }
+
+  // Et link skal åbne, ikke hakke af.
+  if (e.target.closest('a')) return;
+
+  var sub = e.target.closest('.sub[data-id]');
+  if (!sub) return;
+  var id = sub.getAttribute('data-id');
+  hakket[id] = !hakket[id];
+  skriv(hakket);
+  tegn();
+});
+
+document.querySelectorAll('.sub[data-id]').forEach(function(el){
+  el.setAttribute('role', 'button');
+  el.setAttribute('tabindex', '0');
+  el.addEventListener('keydown', function(e){
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click() }
+  });
+});
+
+tegn();
+</script>

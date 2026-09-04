@@ -23,6 +23,8 @@ eventet med dato, nedtælling og en linje, der viser hvor langt kunden er.
 
 ## Sådan kommer den live
 
+**Trin for trin med links: [`OPSAETNING.md`](OPSAETNING.md).** Kort fortalt:
+
 **1. Læg tabellerne ind.** Kør [`supabase/migrations/001_portal.sql`](supabase/migrations/001_portal.sql)
 én gang i Supabase → SQL Editor. Den opretter to tabeller og de funktioner,
 appen henter data gennem, og sætter admin-koden til `100408`.
@@ -87,6 +89,7 @@ tastefejl, der ikke findes. Slå dem aldrig sammen til ét svar.
 | [`docs/MODUL-KILDER.md`](docs/MODUL-KILDER.md) | De eksisterende projekter, og hvad der kan lånes fra hvert af dem. |
 | [`docs/UDGANGSPUNKT.md`](docs/UDGANGSPUNKT.md) | Hvad kundeportalen i EventFlow kan i dag, og hvad der er værd at gøre anderledes. |
 | [`prototype/kundeportal.html`](prototype/kundeportal.html) | Den første skitse i én fil. Den rigtige app har overhalet den — behold den kun som reference. |
+| [`OPSAETNING.md`](OPSAETNING.md) | Trin for trin til at få portalen live: database, nøgler, domæne — med links og en prøve til sidst. |
 | `CLAUDE.md` | Arbejdsreglerne for projektet. |
 
 ## Stak
