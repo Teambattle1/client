@@ -1,0 +1,769 @@
+<title>EventDay Kundeportal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap">
+<style>
+:root{
+  --paper:#e8e5df; --surface:#faf9f7; --surface2:#f2f0ec;
+  --line:rgba(0,0,0,.09); --line2:rgba(0,0,0,.16);
+  --ink:#16140f; --muted:#5f5b55; --dim:#8e8a84;
+  --accent:#d4640a; --accent-l:#e87520; --accent-d:#b85406;
+  --accent-soft:rgba(212,100,10,.10);
+  --green:#12805e; --gold:#8f7118; --red:#b02a2a;
+  --on-accent:#ffffff; --on-accent-soft:rgba(255,255,255,.82);
+  --shadow:0 1px 2px rgba(22,20,15,.05),0 8px 24px rgba(22,20,15,.07);
+  --shadow-tile:0 1px 2px rgba(150,70,5,.20),0 10px 22px rgba(150,70,5,.20);
+  --shadow-lg:0 20px 60px rgba(22,20,15,.22);
+  --sa-top:env(safe-area-inset-top,0px);
+  --sa-bottom:env(safe-area-inset-bottom,0px);
+  --sa-left:env(safe-area-inset-left,0px);
+  --sa-right:env(safe-area-inset-right,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0e0d0b; --surface:#191715; --surface2:#221f1c;
+    --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.18);
+    --ink:#f2eee8; --muted:#b0aaa2; --dim:#8b857d;
+    --accent:#e0700f; --accent-l:#f08428; --accent-d:#c25c07;
+    --accent-soft:rgba(224,112,15,.16);
+    --green:#3cc79a; --gold:#d8b243; --red:#e97070;
+    --shadow:0 1px 2px rgba(0,0,0,.5),0 8px 24px rgba(0,0,0,.45);
+    --shadow-tile:0 1px 2px rgba(0,0,0,.5),0 10px 22px rgba(0,0,0,.45);
+    --shadow-lg:0 20px 60px rgba(0,0,0,.65);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0e0d0b; --surface:#191715; --surface2:#221f1c;
+  --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.18);
+  --ink:#f2eee8; --muted:#b0aaa2; --dim:#8b857d;
+  --accent:#e0700f; --accent-l:#f08428; --accent-d:#c25c07;
+  --accent-soft:rgba(224,112,15,.16);
+  --green:#3cc79a; --gold:#d8b243; --red:#e97070;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 8px 24px rgba(0,0,0,.45);
+  --shadow-tile:0 1px 2px rgba(0,0,0,.5),0 10px 22px rgba(0,0,0,.45);
+  --shadow-lg:0 20px 60px rgba(0,0,0,.65);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:'Outfit',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
+  font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;
+  padding:calc(var(--sa-top) + 18px) calc(var(--sa-right) + 16px) calc(var(--sa-bottom) + 40px) calc(var(--sa-left) + 16px);
+}
+h1,h2,h3{font-family:'Playfair Display',Georgia,'Times New Roman',serif;line-height:1.14;margin:0;text-wrap:balance;font-weight:600}
+p{margin:0}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input,textarea,select{font:inherit;color:inherit}
+a{color:inherit}
+:focus-visible{outline:2.5px solid var(--accent);outline-offset:3px;border-radius:6px}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+.wrap{max-width:940px;margin:0 auto}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+
+/* ---------- brandbjælke ---------- */
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+.brand-mark{width:26px;height:26px;border-radius:8px;background:linear-gradient(150deg,var(--accent-l),var(--accent-d));
+  display:grid;place-items:center;box-shadow:var(--shadow-tile);flex:0 0 auto}
+.brand-name{font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.brand-sub{font-size:13px;color:var(--dim);letter-spacing:.02em}
+.brand-spacer{flex:1}
+.ghost-btn{font-size:12.5px;font-weight:600;color:var(--muted);border:1px solid var(--line2);
+  border-radius:999px;padding:7px 14px;transition:background .15s,color .15s}
+.ghost-btn:hover{background:var(--surface);color:var(--ink)}
+
+/* ---------- eventkort ---------- */
+.hero{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  padding:22px 20px 18px;box-shadow:var(--shadow);margin-bottom:16px}
+.hero-top{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;justify-content:space-between}
+.hero h1{font-size:clamp(25px,6.2vw,38px);letter-spacing:-.015em}
+.hero-firma{font-size:13.5px;color:var(--muted);font-weight:500;margin-top:5px}
+.countdown{flex:0 0 auto;text-align:right}
+.countdown-n{font-family:'Playfair Display',Georgia,serif;font-size:34px;font-weight:700;
+  color:var(--accent);line-height:1;font-variant-numeric:tabular-nums}
+.countdown-l{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-top:3px}
+.facts{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:16px;padding-top:15px;border-top:1px solid var(--line)}
+.fact{display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--muted);font-weight:500}
+.fact svg{flex:0 0 auto;color:var(--accent)}
+.rail{margin-top:16px}
+.rail-head{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;
+  color:var(--muted);font-weight:500;margin-bottom:7px}
+.rail-head b{color:var(--ink);font-weight:600}
+.rail-track{height:5px;border-radius:99px;background:var(--surface2);overflow:hidden;border:1px solid var(--line)}
+.rail-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-l));
+  border-radius:99px;transition:width .5s ease}
+
+/* ---------- de seks fliser ---------- */
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}
+@media (min-width:700px){.grid{grid-template-columns:repeat(3,1fr);gap:14px}}
+.tile{
+  position:relative;display:flex;flex-direction:column;gap:11px;text-align:left;
+  min-height:146px;padding:15px 14px 13px;border-radius:15px;color:var(--on-accent);
+  background:linear-gradient(157deg,var(--accent-l) 0%,var(--accent) 52%,var(--accent-d) 100%);
+  box-shadow:var(--shadow-tile);
+  transition:transform .18s cubic-bezier(.2,.7,.3,1),box-shadow .18s,filter .18s;
+}
+@media (min-width:700px){.tile{min-height:164px;padding:18px 16px 15px}}
+.tile:hover{transform:translateY(-3px);filter:saturate(1.06)}
+.tile:active{transform:translateY(0) scale(.985)}
+.tile-icon{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.17);
+  border:1px solid rgba(255,255,255,.26);display:grid;place-items:center;flex:0 0 auto}
+.tile-icon svg{display:block}
+.tile-body{display:block;margin-top:auto;min-width:0}
+.tile-label{display:block;font-size:12.5px;font-weight:700;letter-spacing:.075em;text-transform:uppercase;
+  line-height:1.24;color:var(--on-accent);overflow-wrap:anywhere}
+@media (min-width:700px){.tile-label{font-size:13.5px}}
+.tile-status{display:block;margin-top:5px;font-size:12px;font-weight:500;
+  color:var(--on-accent-soft);line-height:1.35;overflow-wrap:anywhere}
+.tile-dot{position:absolute;top:13px;right:13px;display:flex;align-items:center;gap:5px;
+  background:#fff;color:var(--accent-d);font-size:10px;font-weight:800;letter-spacing:.08em;
+  text-transform:uppercase;padding:3px 8px;border-radius:99px}
+.tile-check{position:absolute;top:15px;right:14px;color:rgba(255,255,255,.9)}
+
+/* ---------- ark ---------- */
+.sheet-back{position:fixed;inset:0;background:rgba(20,16,10,.5);backdrop-filter:blur(3px);
+  display:flex;align-items:flex-end;justify-content:center;z-index:50;
+  padding:calc(var(--sa-top) + 24px) calc(var(--sa-right) + 10px) 0 calc(var(--sa-left) + 10px)}
+@media (min-width:700px){.sheet-back{align-items:center;padding-bottom:24px}}
+.sheet{width:100%;max-width:640px;max-height:min(92vh,100%);display:flex;flex-direction:column;
+  background:var(--surface);border:1px solid var(--line);border-radius:18px 18px 0 0;
+  box-shadow:var(--shadow-lg);overflow:hidden;animation:rise .26s cubic-bezier(.2,.8,.3,1)}
+@media (min-width:700px){.sheet{border-radius:18px}}
+@keyframes rise{from{transform:translateY(22px);opacity:0}to{transform:none;opacity:1}}
+.sheet-head{display:flex;align-items:center;gap:13px;padding:16px 16px 14px;border-bottom:1px solid var(--line);flex:0 0 auto}
+.sheet-head .tile-icon{width:38px;height:38px;border-radius:11px;
+  background:linear-gradient(157deg,var(--accent-l),var(--accent-d));border-color:transparent}
+.sheet-title{flex:1;min-width:0}
+.sheet-title h2{font-size:20px;letter-spacing:-.01em}
+.sheet-title span{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+.x-btn{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:var(--muted);
+  border:1px solid var(--line2);flex:0 0 auto;transition:background .15s,color .15s}
+.x-btn:hover{background:var(--surface2);color:var(--ink)}
+.sheet-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;padding:18px 16px calc(var(--sa-bottom) + 22px)}
+
+/* ---------- indhold i ark ---------- */
+.lede{font-size:15px;color:var(--muted);margin-bottom:18px;max-width:62ch}
+.kv{display:flex;justify-content:space-between;gap:16px;padding:11px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+.kv:last-child{border-bottom:0}
+.kv dt{color:var(--muted);font-weight:500}
+.kv dd{margin:0;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.block{background:var(--surface2);border:1px solid var(--line);border-radius:13px;padding:15px;margin-bottom:14px}
+.block h3{font-size:15.5px;margin-bottom:8px}
+.block p{font-size:14.5px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.chip{font-size:12.5px;font-weight:600;padding:5px 11px;border-radius:99px;
+  background:var(--accent-soft);color:var(--accent);border:1px solid rgba(212,100,10,.22)}
+.field{margin-bottom:15px}
+.field label{display:block;font-size:12.5px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.field input,.field textarea,.field select{width:100%;background:var(--surface2);color:var(--ink);
+  border:1px solid var(--line2);border-radius:10px;padding:11px 12px;font-size:15.5px}
+.field textarea{min-height:82px;resize:vertical}
+.field input::placeholder,.field textarea::placeholder{color:var(--dim)}
+.field .hint{font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.4}
+.saved{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--green);min-height:20px}
+.tl{list-style:none;padding:0;margin:0}
+.tl li{display:flex;gap:14px;padding-bottom:16px;position:relative}
+.tl li:not(:last-child)::before{content:"";position:absolute;left:6.5px;top:20px;bottom:0;width:1.5px;background:var(--line2)}
+.tl-dot{width:14px;height:14px;border-radius:99px;border:3px solid var(--accent);background:var(--surface);
+  margin-top:4px;flex:0 0 auto;position:relative;z-index:1}
+.tl-time{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;min-width:48px;flex:0 0 auto}
+.tl-txt strong{display:block;font-size:15px;font-weight:600}
+.tl-txt span{font-size:13.5px;color:var(--muted)}
+.person{display:flex;gap:14px;align-items:center;margin-bottom:16px}
+.avatar{width:56px;height:56px;border-radius:99px;flex:0 0 auto;display:grid;place-items:center;
+  background:linear-gradient(150deg,var(--accent-l),var(--accent-d));color:#fff;
+  font-family:'Playfair Display',serif;font-size:22px;font-weight:700}
+.person b{display:block;font-size:17px;font-weight:600}
+.person span{font-size:13.5px;color:var(--muted)}
+.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:4px}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 17px;border-radius:11px;
+  font-size:14.5px;font-weight:600;transition:filter .15s,background .15s}
+.btn-primary{background:linear-gradient(157deg,var(--accent-l),var(--accent-d));color:#fff;box-shadow:var(--shadow-tile)}
+.btn-primary:hover{filter:saturate(1.08) brightness(1.03)}
+.btn-quiet{border:1px solid var(--line2);color:var(--ink)}
+.btn-quiet:hover{background:var(--surface2)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;padding:5px 11px;border-radius:99px;border:1px solid}
+.pill-green{color:var(--green);border-color:currentColor;background:rgba(18,128,94,.09)}
+.pill-gold{color:var(--gold);border-color:currentColor;background:rgba(143,113,24,.10)}
+.total{display:flex;justify-content:space-between;align-items:baseline;margin-top:6px;padding-top:14px;border-top:2px solid var(--ink)}
+.total span{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.total b{font-family:'Playfair Display',serif;font-size:27px;font-weight:700;font-variant-numeric:tabular-nums}
+
+/* ---------- kundeliste ---------- */
+.admin-head{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:18px}
+.admin-head h1{font-size:clamp(26px,6vw,36px);letter-spacing:-.015em}
+.admin-head p{font-size:14px;color:var(--muted);margin-top:5px}
+.search{position:relative;margin-bottom:14px}
+.search input{width:100%;background:var(--surface);border:1px solid var(--line2);border-radius:12px;
+  padding:13px 14px 13px 42px;font-size:15.5px}
+.search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--dim)}
+.clist{display:flex;flex-direction:column;gap:9px}
+.crow{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--surface);
+  border:1px solid var(--line);border-radius:13px;padding:13px 14px;box-shadow:var(--shadow);
+  transition:border-color .15s,transform .15s}
+.crow:hover{border-color:var(--line2);transform:translateY(-1px)}
+.crow-mark{width:42px;height:42px;border-radius:11px;flex:0 0 auto;display:grid;place-items:center;
+  background:var(--accent-soft);color:var(--accent);font-family:'Playfair Display',serif;font-size:17px;font-weight:700}
+.crow-main{flex:1;min-width:0}
+.crow-main b{display:block;font-size:15.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crow-main span{display:block;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crow-side{flex:0 0 auto;text-align:right}
+.code{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:13.5px;font-weight:600;letter-spacing:.1em}
+.crow-side span{display:block;font-size:11.5px;color:var(--dim);margin-top:2px}
+.empty{background:var(--surface);border:1px dashed var(--line2);border-radius:14px;padding:26px 20px;text-align:center}
+.empty h3{font-size:18px;margin-bottom:6px}
+.empty p{font-size:14px;color:var(--muted);max-width:44ch;margin:0 auto}
+.note{font-size:12.5px;color:var(--dim);line-height:1.5;margin-top:18px;max-width:64ch}
+.linkbox{display:flex;gap:8px;align-items:center;background:var(--surface2);border:1px solid var(--line2);
+  border-radius:11px;padding:10px 12px;margin-top:6px}
+.linkbox code{flex:1;min-width:0;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:520px){.row2{grid-template-columns:1fr}}
+.sec-label{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);
+  margin:20px 0 10px}
+.sec-label:first-child{margin-top:0}
+</style>
+
+<div class="wrap" id="app"></div>
+
+<script>
+"use strict";
+
+/* ---------------------------------------------------------------
+   EventDay Kundeportal — prototype
+   Kundens portal (6 knapper) + oprettelse/hentning af kunder.
+   Data ligger i artefaktens egen database når den er tilgængelig;
+   ellers kører siden på eksempelkunden alene.
+----------------------------------------------------------------*/
+
+var DB = null;                 // sættes når db-kapabiliteten svarer
+var customers = [];            // kunder fra databasen
+var current = null;            // åben kunde (portalvisning)
+var openSection = null;
+var saveTimer = null, savedAt = 0;
+
+/* ---------- ikoner (hvide streg-ikoner) ---------- */
+function icon(name, size, color){
+  var s = size || 24, c = color || "#fff";
+  var d = {
+    flag:   '<path d="M6 21V3.6"/><path d="M6 4.4h12.2l-2.9 4.1 2.9 4.1H6z"/>',
+    form:   '<path d="M9 4.2h6a1.4 1.4 0 0 1 1.4 1.4v.9H7.6v-.9A1.4 1.4 0 0 1 9 4.2z"/><path d="M16.4 5.8h1.9a1.7 1.7 0 0 1 1.7 1.7v11.3a1.7 1.7 0 0 1-1.7 1.7H5.7A1.7 1.7 0 0 1 4 18.8V7.5a1.7 1.7 0 0 1 1.7-1.7h1.9"/><path d="M8.4 11.4h7.2M8.4 15.2h4.6"/>',
+    pin:    '<path d="M12 21.2s7-6.6 7-11.3a7 7 0 1 0-14 0c0 4.7 7 11.3 7 11.3z"/><circle cx="12" cy="9.9" r="2.6"/>',
+    money:  '<rect x="2.9" y="6.2" width="18.2" height="11.6" rx="2.1"/><circle cx="12" cy="12" r="2.6"/><path d="M6.4 12h.1M17.5 12h.1"/>',
+    clock:  '<circle cx="12" cy="12" r="8.6"/><path d="M12 7.3V12l3.3 2"/>',
+    person: '<circle cx="12" cy="8.1" r="3.6"/><path d="M4.7 20.1a7.3 7.3 0 0 1 14.6 0"/>',
+    cal:    '<rect x="3.6" y="5.3" width="16.8" height="15.1" rx="2"/><path d="M8 3.4v3.8M16 3.4v3.8M3.6 10.2h16.8"/>',
+    users:  '<circle cx="9.2" cy="8.4" r="3.2"/><path d="M3.4 19.4a5.8 5.8 0 0 1 11.6 0"/><path d="M16.1 5.6a3.2 3.2 0 0 1 0 5.7M17.4 14.4a5.8 5.8 0 0 1 3.2 5"/>',
+    marker: '<path d="M12 21.2s7-6.6 7-11.3a7 7 0 1 0-14 0c0 4.7 7 11.3 7 11.3z"/><circle cx="12" cy="9.9" r="2.6"/>',
+    search: '<circle cx="10.8" cy="10.8" r="6.6"/><path d="M15.6 15.6 20.4 20.4"/>',
+    close:  '<path d="M6.4 6.4 17.6 17.6M17.6 6.4 6.4 17.6"/>',
+    check:  '<path d="M4.8 12.6 9.4 17.2 19.2 7.4"/>',
+    copy:   '<rect x="8.4" y="8.4" width="11.2" height="11.2" rx="2"/><path d="M15.6 8.4V6.3a1.9 1.9 0 0 0-1.9-1.9H6.3a1.9 1.9 0 0 0-1.9 1.9v7.4a1.9 1.9 0 0 0 1.9 1.9h2.1"/>',
+    plus:   '<path d="M12 5.4v13.2M5.4 12h13.2"/>',
+    back:   '<path d="M15 5.4 8.4 12l6.6 6.6"/>',
+    phone:  '<path d="M6.1 4.5h3.1l1.6 3.9-2 1.2a10.6 10.6 0 0 0 5.6 5.6l1.2-2 3.9 1.6v3.1a1.6 1.6 0 0 1-1.7 1.6A15.8 15.8 0 0 1 4.5 6.2a1.6 1.6 0 0 1 1.6-1.7z"/>',
+    mail:   '<rect x="3.2" y="5.4" width="17.6" height="13.2" rx="2"/><path d="m3.9 6.6 8.1 6 8.1-6"/>'
+  }[name] || "";
+  return '<svg width="'+s+'" height="'+s+'" viewBox="0 0 24 24" fill="none" stroke="'+c+
+    '" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+d+'</svg>';
+}
+
+/* ---------- de seks sektioner ---------- */
+var SECTIONS = [
+  { key:"opgave",   label:"Hvad skal I lave", icon:"flag",   sub:"Aktiviteten I har bestilt" },
+  { key:"info",     label:"Info fra jer",     icon:"form",   sub:"Det vi mangler at vide" },
+  { key:"location", label:"Location",         icon:"pin",    sub:"Mødested og praktisk" },
+  { key:"okonomi",  label:"Økonomi",          icon:"money",  sub:"Pris og betaling" },
+  { key:"tidslinje",label:"Tidslinje",        icon:"clock",  sub:"Sådan forløber dagen" },
+  { key:"kontakt",  label:"Kontakt",          icon:"person", sub:"Jeres gamemaster på opgaven" }
+];
+
+var INFO_FIELDS = [
+  { key:"deltagere",   label:"Endeligt antal deltagere", type:"text",  ph:"fx 48",
+    hint:"Vi låser tallet 5 dage før — små ændringer klarer vi på dagen." },
+  { key:"hold",        label:"Holdinddeling",  type:"select",
+    options:["Vi vælger selv holdene","I må gerne inddele os","Vi blander på dagen"],
+    hint:"Vælger I selv, sender vi en holdliste I kan udfylde." },
+  { key:"ankomst",     label:"Hvornår er I fremme?", type:"text", ph:"fx 12.45",
+    hint:"Vi står klar 45 minutter før jeres starttid." },
+  { key:"kontaktDagen",label:"Kontaktperson på dagen", type:"text", ph:"Navn og mobil",
+    hint:"Den vi ringer til, hvis noget skal afklares undervejs." },
+  { key:"allergi",     label:"Allergier og hensyn", type:"textarea", ph:"Allergier, gangbesvær, andet vi skal tage højde for",
+    hint:"Skriv gerne »ingen« — så ved vi at I har taget stilling." },
+  { key:"bemaerk",     label:"Andet vi skal vide", type:"textarea", ph:"Fx en fødselar, en chef der skal hyldes, en overraskelse" }
+];
+
+/* ---------- eksempelkunde (vises når der ikke er oprettet nogen) ---------- */
+var DEMO = {
+  code:"DEMO01", demo:true,
+  firma:"Nordisk Revision A/S", kontakt:"Mette Hylleborg",
+  email:"mh@nordiskrevision.dk", telefon:"27 41 88 05",
+  eventTitle:"Byjagt i Aarhus", eventDate:"2026-09-26", startTime:"13.00", endTime:"16.30",
+  sted:"Dokk1, Hack Kampmanns Plads 2, 8000 Aarhus C",
+  modested:"Trappen foran hovedindgangen", parkering:"Salling P-hus, 4 min. gang",
+  deltagere:48, pris:23400, betalt:false, faktura:"EAN 5798009812345",
+  beskrivelse:"Et hold-mod-hold løb gennem Aarhus midtby. I får hver en tablet, en rute og 22 opgaver undervejs — fotoopgaver, gåder og små udfordringer, der kræver at I taler sammen. Der er ingen fysiske krav ud over almindelig gang.",
+  inkluderet:["22 opgaver","Tablets til alle hold","Gamemaster på ruten","Resultatshow til sidst","Billeder dagen efter"],
+  gamemaster:{ navn:"Kasper Lund", rolle:"Gamemaster på jeres event", telefon:"40 27 40 27", email:"kasper@eventday.dk" },
+  program:[
+    {tid:"12.15", titel:"Vi rigger op", note:"I skal ikke være der endnu"},
+    {tid:"13.00", titel:"Velkomst og holdinddeling", note:"Ved trappen foran Dokk1"},
+    {tid:"13.20", titel:"Byjagten går i gang", note:"Holdene sendes af sted med hver sin startopgave"},
+    {tid:"15.45", titel:"Alle hold tilbage", note:"Sidste opgave lukker præcis 15.45"},
+    {tid:"16.00", titel:"Resultatshow og præmie", note:"Ca. 20 minutter"},
+    {tid:"16.30", titel:"Tak for i dag", note:""}
+  ],
+  info:{ deltagere:"", hold:"", ankomst:"", kontaktDagen:"", allergi:"", bemaerk:"" }
+};
+
+/* ---------- hjælpere ---------- */
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+
+function newCode(){
+  var alfa="ABCDEFGHJKLMNPQRSTUVWXYZ23456789", s="";
+  for(var i=0;i<6;i++) s+=alfa[Math.floor(Math.random()*alfa.length)];
+  return s;
+}
+function initials(s){
+  var p=String(s||"?").trim().split(/\s+/);
+  return ((p[0]||"?")[0] + (p.length>1 ? p[p.length-1][0] : "")).toUpperCase();
+}
+function danskDato(iso){
+  if(!iso) return "Dato ikke sat";
+  var m=["januar","februar","marts","april","maj","juni","juli","august","september","oktober","november","december"];
+  var u=["søndag","mandag","tirsdag","onsdag","torsdag","fredag","lørdag"];
+  var d=new Date(iso+"T12:00:00");
+  if(isNaN(d)) return iso;
+  return u[d.getDay()]+" d. "+d.getDate()+". "+m[d.getMonth()]+" "+d.getFullYear();
+}
+function dageTil(iso){
+  if(!iso) return null;
+  var d=new Date(iso+"T12:00:00"); if(isNaN(d)) return null;
+  var nu=new Date(); nu.setHours(12,0,0,0);
+  return Math.round((d-nu)/86400000);
+}
+function kr(n){
+  if(n==null||n==="") return "—";
+  return Number(n).toLocaleString("da-DK")+" kr.";
+}
+function infoUdfyldt(c){
+  var n=0; for(var i=0;i<INFO_FIELDS.length;i++){
+    var v=(c.info||{})[INFO_FIELDS[i].key];
+    if(v!=null && String(v).trim()!=="") n++;
+  }
+  return n;
+}
+function portalLink(code){
+  return location.origin + location.pathname + "?k=" + code;
+}
+
+/* ---------- database ---------- */
+function loadCustomers(){
+  if(!DB) return Promise.resolve();
+  return DB.collection("customers").orderBy("eventDate","asc").limit(200).get()
+    .then(function(snap){
+      customers = snap.docs.map(function(d){
+        var o=d.data()||{}; o.code=d.id; return o;
+      });
+    })
+    .catch(function(){ /* tom liste er et gyldigt svar */ });
+}
+function saveCustomer(c){
+  if(!DB) return Promise.resolve();
+  var body={}; for(var k in c){ if(k!=="code") body[k]=c[k]; }
+  return DB.doc("customers/"+c.code).set(body);
+}
+
+/* ---------- visninger ---------- */
+function render(){
+  var app=document.getElementById("app");
+  app.innerHTML = current ? portalView() : adminView();
+}
+
+function brandBar(right){
+  return '<div class="brand">'+
+    '<div class="brand-mark">'+icon("flag",15)+'</div>'+
+    '<div><div class="brand-name">EventDay</div></div>'+
+    '<div class="brand-spacer"></div>'+ (right||"") +'</div>';
+}
+
+/* ===== kundens portal ===== */
+function portalView(){
+  var c=current, dage=dageTil(c.eventDate), n=infoUdfyldt(c);
+  var pct=Math.round(n/INFO_FIELDS.length*100);
+  var tilbage = '<button class="ghost-btn" data-act="tilbage">← Alle kunder</button>';
+
+  var tiles = SECTIONS.map(function(s){
+    var st="", badge="";
+    if(s.key==="opgave")    st = c.eventTitle || "Jeres event";
+    if(s.key==="info"){
+      st = n+" af "+INFO_FIELDS.length+" udfyldt";
+      badge = n<INFO_FIELDS.length
+        ? '<span class="tile-dot">Mangler</span>'
+        : '<span class="tile-check">'+icon("check",18,"rgba(255,255,255,.9)")+'</span>';
+    }
+    if(s.key==="location")  st = (c.sted||"Ikke sat").split(",")[0];
+    if(s.key==="okonomi")   st = c.betalt ? "Betalt" : kr(c.pris);
+    if(s.key==="tidslinje") st = (c.program||[]).length ? "Start "+(c.startTime||"—") : "Kommer snart";
+    if(s.key==="kontakt")   st = (c.gamemaster&&c.gamemaster.navn) || "Vi finder en";
+    return '<button class="tile" data-sec="'+s.key+'">'+ badge +
+      '<span class="tile-icon">'+icon(s.icon,22)+'</span>'+
+      '<span class="tile-body"><span class="tile-label">'+esc(s.label)+'</span>'+
+      '<span class="tile-status">'+esc(st)+'</span></span></button>';
+  }).join("");
+
+  return brandBar(tilbage)+
+  '<div class="hero">'+
+    '<div class="hero-top">'+
+      '<div><div class="eyebrow" style="margin-bottom:7px">Jeres event</div>'+
+        '<h1>'+esc(c.eventTitle||"Jeres event")+'</h1>'+
+        '<div class="hero-firma">'+esc(c.firma||"")+(c.kontakt?' &middot; '+esc(c.kontakt):"")+'</div></div>'+
+      (dage!=null&&dage>=0 ? '<div class="countdown"><div class="countdown-n">'+dage+'</div>'+
+        '<div class="countdown-l">'+(dage===1?"dag til":"dage til")+'</div></div>' : "")+
+    '</div>'+
+    '<div class="facts">'+
+      '<span class="fact">'+icon("cal",16,"currentColor")+esc(danskDato(c.eventDate))+'</span>'+
+      (c.startTime?'<span class="fact">'+icon("clock",16,"currentColor")+esc(c.startTime)+(c.endTime?"–"+esc(c.endTime):"")+'</span>':"")+
+      (c.deltagere?'<span class="fact">'+icon("users",16,"currentColor")+esc(c.deltagere)+' deltagere</span>':"")+
+    '</div>'+
+    '<div class="rail"><div class="rail-head"><span>Jeres oplysninger</span>'+
+      '<span><b>'+n+'</b> af '+INFO_FIELDS.length+'</span></div>'+
+      '<div class="rail-track"><div class="rail-fill" style="width:'+Math.max(pct,3)+'%"></div></div></div>'+
+  '</div>'+
+  '<div class="grid">'+tiles+'</div>'+
+  (c.demo ? '<p class="note">Det her er en eksempelkunde, så I kan se hvordan portalen ser ud. Opret en rigtig kunde for at få et link, der hører til et bestemt event.</p>' : "")+
+  (openSection ? sheet(openSection) : "");
+}
+
+/* ===== ark pr. sektion ===== */
+function sheet(key){
+  var s=null; for(var i=0;i<SECTIONS.length;i++) if(SECTIONS[i].key===key) s=SECTIONS[i];
+  if(!s) return "";
+  var body = {
+    opgave:secOpgave, info:secInfo, location:secLocation,
+    okonomi:secOkonomi, tidslinje:secTidslinje, kontakt:secKontakt
+  }[key](current);
+
+  return '<div class="sheet-back" data-close="1"><div class="sheet" role="dialog" aria-modal="true" aria-label="'+esc(s.label)+'">'+
+    '<div class="sheet-head"><span class="tile-icon">'+icon(s.icon,20)+'</span>'+
+    '<div class="sheet-title"><h2>'+esc(s.label)+'</h2><span>'+esc(s.sub)+'</span></div>'+
+    '<button class="x-btn" data-act="luk" aria-label="Luk">'+icon("close",18,"currentColor")+'</button></div>'+
+    '<div class="sheet-body">'+body+'</div></div></div>';
+}
+
+function secOpgave(c){
+  var chips=(c.inkluderet||[]).map(function(x){return '<span class="chip">'+esc(x)+'</span>';}).join("");
+  return '<p class="lede">'+esc(c.beskrivelse||"Beskrivelsen af jeres aktivitet lægges ind her, når den er på plads.")+'</p>'+
+    '<div class="block"><h3>Det er med i prisen</h3>'+
+      (chips?'<div class="chips">'+chips+'</div>':'<p>Vi udfylder listen sammen med tilbuddet.</p>')+'</div>'+
+    '<dl style="margin:0">'+
+      '<div class="kv"><dt>Varighed</dt><dd>'+esc(c.startTime||"—")+(c.endTime?"–"+esc(c.endTime):"")+'</dd></div>'+
+      '<div class="kv"><dt>Deltagere</dt><dd>'+esc(c.deltagere||"—")+'</dd></div>'+
+      '<div class="kv"><dt>Fysisk niveau</dt><dd>Almindelig gang</dd></div>'+
+      '<div class="kv"><dt>Vejret</dt><dd>Vi gennemfører i alt vejr</dd></div>'+
+    '</dl>';
+}
+
+function secInfo(c){
+  var f=c.info||{};
+  var fields=INFO_FIELDS.map(function(x){
+    var v=esc(f[x.key]||"");
+    var input;
+    if(x.type==="textarea")
+      input='<textarea data-info="'+x.key+'" placeholder="'+esc(x.ph||"")+'">'+v+'</textarea>';
+    else if(x.type==="select")
+      input='<select data-info="'+x.key+'"><option value="">Vælg …</option>'+
+        x.options.map(function(o){return '<option'+(f[x.key]===o?' selected':'')+'>'+esc(o)+'</option>';}).join("")+'</select>';
+    else
+      input='<input type="text" data-info="'+x.key+'" value="'+v+'" placeholder="'+esc(x.ph||"")+'">';
+    return '<div class="field"><label>'+esc(x.label)+'</label>'+input+
+      (x.hint?'<p class="hint">'+esc(x.hint)+'</p>':"")+'</div>';
+  }).join("");
+  return '<p class="lede">Jo før vi har det her, jo mindre skal I tage stilling til på dagen. I kan gemme undervejs og komme tilbage.</p>'+
+    fields + '<div class="saved" id="gemt"></div>';
+}
+
+function secLocation(c){
+  var adr=c.sted||"Adressen er ikke sat endnu";
+  return '<div class="block"><h3>Mødested</h3><p>'+esc(adr)+'</p>'+
+      (c.modested?'<p style="margin-top:8px;color:var(--ink);font-weight:600">'+esc(c.modested)+'</p>':"")+
+    '</div>'+
+    '<dl style="margin:0 0 16px">'+
+      '<div class="kv"><dt>Parkering</dt><dd>'+esc(c.parkering||"—")+'</dd></div>'+
+      '<div class="kv"><dt>Offentligt</dt><dd>Letbane og bus lige ved</dd></div>'+
+      '<div class="kv"><dt>Toiletter</dt><dd>Ved mødestedet</dd></div>'+
+      '<div class="kv"><dt>Ly for regn</dt><dd>Ja, indendørs samlingssted</dd></div>'+
+    '</dl>'+
+    '<div class="actions"><a class="btn btn-primary" target="_blank" rel="noopener"'+
+      ' href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(adr)+'">'+
+      icon("marker",18)+'Vis på kort</a></div>';
+}
+
+function secOkonomi(c){
+  var pris=Number(c.pris||0), pr=c.deltagere?Math.round(pris/c.deltagere):null;
+  return '<div style="margin-bottom:16px">'+
+      (c.betalt?'<span class="pill pill-green">'+icon("check",13,"currentColor")+'Betalt</span>'
+               :'<span class="pill pill-gold">Faktura sendt</span>')+'</div>'+
+    '<dl style="margin:0">'+
+      '<div class="kv"><dt>Aktivitet, '+esc(c.deltagere||"—")+' deltagere</dt><dd>'+kr(pris)+'</dd></div>'+
+      (pr?'<div class="kv"><dt>Pris pr. deltager</dt><dd>'+kr(pr)+'</dd></div>':"")+
+      '<div class="kv"><dt>Moms</dt><dd>Tillægges</dd></div>'+
+      '<div class="kv"><dt>Betaling</dt><dd>8 dage netto</dd></div>'+
+      '<div class="kv"><dt>Faktureres til</dt><dd>'+esc(c.faktura||"—")+'</dd></div>'+
+    '</dl>'+
+    '<div class="total"><span>I alt ekskl. moms</span><b>'+kr(pris)+'</b></div>'+
+    '<p class="note">Ændrer antallet af deltagere sig mere end 10 %, retter vi fakturaen efter det endelige tal.</p>';
+}
+
+function secTidslinje(c){
+  var p=c.program||[];
+  if(!p.length) return '<p class="lede">Programmet lægges her, så snart tiderne er faldet på plads.</p>';
+  return '<p class="lede">Sådan ser dagen ud lige nu. Skal noget flyttes, så sig til — det er nemmest inden ugen før.</p>'+
+    '<ul class="tl">'+p.map(function(x){
+      return '<li><span class="tl-dot"></span><span class="tl-time">'+esc(x.tid)+'</span>'+
+        '<span class="tl-txt"><strong>'+esc(x.titel)+'</strong>'+(x.note?'<span>'+esc(x.note)+'</span>':"")+'</span></li>';
+    }).join("")+'</ul>';
+}
+
+function secKontakt(c){
+  var g=c.gamemaster||{};
+  return '<div class="person"><div class="avatar">'+esc(initials(g.navn||"EventDay"))+'</div>'+
+    '<div><b>'+esc(g.navn||"Vi sætter navn på snarest")+'</b>'+
+    '<span>'+esc(g.rolle||"Gamemaster på jeres event")+'</span></div></div>'+
+    '<p class="lede">Ring endelig — også om småting. Det er bedre end at gætte på dagen.</p>'+
+    '<div class="actions">'+
+      (g.telefon?'<a class="btn btn-primary" href="tel:'+esc(String(g.telefon).replace(/\s/g,""))+'">'+icon("phone",18)+esc(g.telefon)+'</a>':"")+
+      (g.email?'<a class="btn btn-quiet" href="mailto:'+esc(g.email)+'">'+icon("mail",18,"currentColor")+'Skriv til os</a>':"")+
+    '</div>'+
+    '<div class="block" style="margin-top:18px"><h3>På selve dagen</h3>'+
+      '<p>Vi er på plads 45 minutter før jeres starttid. Kan I ikke finde os, så ring — vi står altid det sted, der står under Location.</p></div>';
+}
+
+/* ===== kundeliste og oprettelse ===== */
+var soegning="", opretter=false, nyKode=null;
+
+function adminView(){
+  var q=soegning.toLowerCase().trim();
+  var liste=customers.filter(function(c){
+    if(!q) return true;
+    return ((c.firma||"")+" "+(c.kontakt||"")+" "+(c.eventTitle||"")+" "+c.code).toLowerCase().indexOf(q)>=0;
+  });
+
+  var rows = liste.map(function(c){
+    var d=dageTil(c.eventDate);
+    return '<button class="crow" data-open="'+esc(c.code)+'">'+
+      '<span class="crow-mark">'+esc(initials(c.firma))+'</span>'+
+      '<span class="crow-main"><b>'+esc(c.firma||"Uden navn")+'</b>'+
+      '<span>'+esc(c.eventTitle||"Event ikke navngivet")+' &middot; '+esc(danskDato(c.eventDate))+'</span></span>'+
+      '<span class="crow-side"><span class="code">'+esc(c.code)+'</span>'+
+      '<span>'+(d!=null&&d>=0?"om "+d+" dage":"afholdt")+'</span></span></button>';
+  }).join("");
+
+  var listeDel;
+  if(customers.length===0){
+    listeDel = '<div class="empty"><h3>Ingen kunder endnu</h3>'+
+      '<p>Opret den første herunder. Hver kunde får sin egen kode og sit eget link til portalen.</p></div>'+
+      '<div class="sec-label">Se hvordan portalen ser ud</div>'+
+      '<div class="clist"><button class="crow" data-open="DEMO01">'+
+        '<span class="crow-mark">NR</span>'+
+        '<span class="crow-main"><b>Nordisk Revision A/S</b><span>Eksempelkunde &middot; byjagt i Aarhus</span></span>'+
+        '<span class="crow-side"><span class="code">DEMO01</span><span>eksempel</span></span></button></div>';
+  } else {
+    listeDel = '<div class="search">'+icon("search",18,"currentColor")+
+      '<input type="search" id="q" placeholder="Søg på firma, kontakt, event eller kode" value="'+esc(soegning)+'"></div>'+
+      (rows ? '<div class="clist">'+rows+'</div>'
+            : '<div class="empty"><h3>Ingen træffere</h3><p>Prøv et andet ord, eller opret kunden.</p></div>');
+  }
+
+  return brandBar('<button class="ghost-btn" data-act="ny">'+ (opretter?"Luk":"+ Ny kunde") +'</button>')+
+    '<div class="admin-head"><div><div class="eyebrow" style="margin-bottom:7px">Kundeportaler</div>'+
+    '<h1>Kunder</h1><p>Find en kunde, eller opret en ny og send dem adgang til deres egen portal.</p></div></div>'+
+    (opretter ? opretForm() : "")+
+    (nyKode ? kvittering(nyKode) : "")+
+    listeDel+
+    (DB ? "" : '<p class="note">Siden kan ikke gemme lige nu, så nye kunder forsvinder når du lukker den. Eksempelkunden virker som normalt.</p>');
+}
+
+function opretForm(){
+  return '<div class="block" style="padding:18px">'+
+    '<h3 style="font-size:18px;margin-bottom:14px">Ny kunde</h3>'+
+    '<div class="row2">'+
+      '<div class="field"><label>Firma</label><input id="f-firma" placeholder="Nordisk Revision A/S"></div>'+
+      '<div class="field"><label>Kontaktperson</label><input id="f-kontakt" placeholder="Mette Hylleborg"></div>'+
+      '<div class="field"><label>E-mail</label><input id="f-email" type="email" placeholder="mh@firma.dk"></div>'+
+      '<div class="field"><label>Telefon</label><input id="f-telefon" placeholder="27 41 88 05"></div>'+
+      '<div class="field"><label>Event</label><input id="f-event" placeholder="Byjagt i Aarhus"></div>'+
+      '<div class="field"><label>Dato</label><input id="f-dato" type="date"></div>'+
+      '<div class="field"><label>Starttid</label><input id="f-start" placeholder="13.00"></div>'+
+      '<div class="field"><label>Antal deltagere</label><input id="f-antal" inputmode="numeric" placeholder="48"></div>'+
+    '</div>'+
+    '<div class="field"><label>Sted</label><input id="f-sted" placeholder="Dokk1, Hack Kampmanns Plads 2, 8000 Aarhus C"></div>'+
+    '<div class="field" style="margin-bottom:4px"><label>Pris ekskl. moms</label><input id="f-pris" inputmode="numeric" placeholder="23400"></div>'+
+    '<div class="actions" style="margin-top:16px">'+
+      '<button class="btn btn-primary" data-act="gem">'+icon("plus",18)+'Opret kunde og lav adgang</button>'+
+      '<button class="btn btn-quiet" data-act="annuller">Annuller</button>'+
+    '</div></div>';
+}
+
+function kvittering(c){
+  return '<div class="block" style="border-color:var(--accent);background:var(--accent-soft)">'+
+    '<h3>'+esc(c.firma)+' er oprettet</h3>'+
+    '<p>Send linket til '+esc(c.kontakt||"kunden")+'. Koden er <b class="code" style="color:var(--ink)">'+esc(c.code)+'</b> — den skal de ikke bruge, hvis de klikker på linket.</p>'+
+    '<div class="linkbox"><code>'+esc(portalLink(c.code))+'</code>'+
+      '<button class="btn btn-quiet" style="padding:7px 12px" data-copy="'+esc(portalLink(c.code))+'">'+
+      icon("copy",16,"currentColor")+'Kopiér</button></div>'+
+    '<div class="actions" style="margin-top:14px">'+
+      '<button class="btn btn-primary" data-open="'+esc(c.code)+'">Åbn deres portal</button>'+
+      '<button class="btn btn-quiet" data-act="skjul">Færdig</button></div></div>';
+}
+
+/* ---------- hændelser (bindes ÉN gang — #app overlever hver gentegning) ---------- */
+function bind(){
+  var app=document.getElementById("app");
+
+  app.addEventListener("click", function(e){
+    var t;
+
+    if((t=e.target.closest("[data-sec]"))){ openSection=t.getAttribute("data-sec"); render(); return; }
+    if((t=e.target.closest("[data-act='luk']")) || (e.target.classList&&e.target.classList.contains("sheet-back"))){
+      openSection=null; render(); return;
+    }
+    if((t=e.target.closest("[data-open]"))){
+      var kode=t.getAttribute("data-open");
+      aabnPortal(kode); return;
+    }
+    if((t=e.target.closest("[data-act='tilbage']"))){
+      current=null; openSection=null; nyKode=null;
+      try{ history.replaceState(null,"",location.pathname); }catch(_){}
+      render(); return;
+    }
+    if((t=e.target.closest("[data-act='ny']"))){ opretter=!opretter; nyKode=null; render(); return; }
+    if((t=e.target.closest("[data-act='annuller']"))){ opretter=false; render(); return; }
+    if((t=e.target.closest("[data-act='skjul']"))){ nyKode=null; render(); return; }
+    if((t=e.target.closest("[data-act='gem']"))){ opretKunde(); return; }
+    if((t=e.target.closest("[data-copy]"))){
+      var v=t.getAttribute("data-copy");
+      if(navigator.clipboard) navigator.clipboard.writeText(v);
+      t.innerHTML=icon("check",16,"currentColor")+"Kopieret";
+      return;
+    }
+  });
+
+  function feltAendret(e){
+    if(e.target.id==="q"){
+      soegning=e.target.value;
+      var pos=e.target.selectionStart;
+      render();
+      var nq=document.getElementById("q");
+      if(nq){ nq.focus(); try{ nq.setSelectionRange(pos,pos); }catch(_){} }
+      return;
+    }
+    var el=e.target.closest?e.target.closest("[data-info]"):null;
+    if(!el||!current) return;
+    current.info=current.info||{};
+    current.info[el.getAttribute("data-info")]=el.value;
+    gemInfoSenere();
+  }
+  app.addEventListener("input", feltAendret);
+  app.addEventListener("change", feltAendret);
+}
+
+document.addEventListener("keydown", function(e){
+  if(e.key==="Escape" && openSection){ openSection=null; render(); }
+});
+
+function gemInfoSenere(){
+  var m=document.getElementById("gemt");
+  if(m) m.innerHTML='<span style="color:var(--muted);font-weight:500">Gemmer …</span>';
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(function(){
+    if(current.demo || !DB){
+      if(m) m.innerHTML=icon("check",16,"currentColor")+"Gemt her på enheden";
+      return;
+    }
+    saveCustomer(current).then(function(){
+      var mm=document.getElementById("gemt");
+      if(mm) mm.innerHTML=icon("check",16,"currentColor")+"Gemt";
+      savedAt=Date.now();
+    }).catch(function(){
+      var mm=document.getElementById("gemt");
+      if(mm) mm.innerHTML='<span style="color:var(--red)">Kunne ikke gemme — prøv igen om lidt</span>';
+    });
+  }, 700);
+}
+
+function aabnPortal(kode){
+  if(kode==="DEMO01"){
+    current=JSON.parse(JSON.stringify(DEMO));
+  } else {
+    var fundet=null;
+    for(var i=0;i<customers.length;i++) if(customers[i].code===kode) fundet=customers[i];
+    if(!fundet) return;
+    current=fundet;
+  }
+  openSection=null; opretter=false; nyKode=null;
+  try{ history.replaceState(null,"",location.pathname+"?k="+kode); }catch(_){}
+  window.scrollTo(0,0);
+  render();
+}
+
+function opretKunde(){
+  function v(id){ var el=document.getElementById(id); return el?el.value.trim():""; }
+  var firma=v("f-firma");
+  if(!firma){ var el=document.getElementById("f-firma"); if(el){ el.focus(); el.style.borderColor="var(--red)"; } return; }
+
+  var c={
+    code:newCode(),
+    firma:firma, kontakt:v("f-kontakt"), email:v("f-email"), telefon:v("f-telefon"),
+    eventTitle:v("f-event")||"Event uden navn", eventDate:v("f-dato"),
+    startTime:v("f-start"), endTime:"",
+    sted:v("f-sted"), modested:"", parkering:"",
+    deltagere:v("f-antal")?Number(v("f-antal")):null,
+    pris:v("f-pris")?Number(v("f-pris")):null,
+    betalt:false, faktura:"",
+    beskrivelse:"", inkluderet:[],
+    gamemaster:{navn:"",rolle:"Gamemaster på jeres event",telefon:"",email:""},
+    program:[], info:{},
+    oprettet:new Date().toISOString()
+  };
+
+  customers.unshift(c);
+  opretter=false; nyKode=c;
+  render();
+  if(DB) saveCustomer(c).catch(function(){});
+}
+
+/* ---------- opstart ---------- */
+function kodeFraUrl(){
+  var q=new URLSearchParams(location.search).get("k");
+  if(q) return q.toUpperCase();
+  var h=location.hash.match(/k=([A-Z0-9]{4,8})/i);
+  return h?h[1].toUpperCase():null;
+}
+
+render();  // tegn med det samme — databasen må gerne komme bagefter
+bind();    // én gang: #app bliver hængende, kun dets indhold skiftes ud
+
+(function(){
+  var kode=kodeFraUrl();
+  if(kode==="DEMO01"){ aabnPortal("DEMO01"); }
+})();
+
+if(window.claude && typeof window.claude.use==="function"){
+  window.claude.use("db").then(function(db){
+    DB=db;
+    if(!DB){ render(); return; }
+    return loadCustomers().then(function(){
+      var kode=kodeFraUrl();
+      if(kode && kode!=="DEMO01"){ aabnPortal(kode); }
+      else render();
+    });
+  }).catch(function(){ /* siden kører videre på eksempelkunden */ });
+}
+</script>
