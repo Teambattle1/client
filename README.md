@@ -1,43 +1,96 @@
 # Client
 
-Nyt kundevendt site/app for EventDay — bygget videre på ideen bag
-**client.eventday.dk** (kundeportalen i EventFlow), men som sit eget produkt
-med moduler hentet fra de eksisterende Teambattle1-repos.
+Kundevendt site for EventDay — kunden taster seks cifre og lander på sin egen
+side med alt om deres event. Bygget til at ligge på **client.eventday.dk**.
 
 ## Status
 
-🟡 **Beskrivelses-fasen, med en første prototype.** Selve appen er ikke bygget
-endnu — først lægger vi fast hvad sitet skal kunne og hvilke moduler det låner
-fra de andre projekter. Kundens portal findes dog allerede som en klikbar
-prototype, så designet kan vurderes på en telefon inden der bygges.
+🟡 **Appen er bygget og virker — den mangler at blive koblet på databasen og
+sat på domænet.** Tre ting udestår; de står under »Sådan kommer den live«.
+
+## Sådan virker den
+
+| Adresse | Hvem | Hvad |
+|---|---|---|
+| `/` | alle | Ét felt til seks cifre. Kundens kode åbner deres side; admin-koden åbner kundelisten. |
+| `/p/<seks cifre>` | kunden | Kundens egen side. Kan sendes som direkte link, så de slipper for at taste. |
+| `/admin` | os | Find en kunde, opret en ny, kopiér deres link. Lukker sig selv, når fanen lukkes. |
+
+Kundens side har seks knapper: **hvad skal I lave · info fra jer · location ·
+økonomi · tidslinje · kontakt**. Kun »info fra jer« skriver kunden selv — den
+gemmer løbende og bærer et »MANGLER«-mærke, indtil den er udfyldt. Øverst står
+eventet med dato, nedtælling og en linje, der viser hvor langt kunden er.
+
+## Sådan kommer den live
+
+**1. Læg tabellerne ind.** Kør [`supabase/migrations/001_portal.sql`](supabase/migrations/001_portal.sql)
+én gang i Supabase → SQL Editor. Den opretter to tabeller og de funktioner,
+appen henter data gennem, og sætter admin-koden til `100408`.
+
+**2. Sæt de to nøgler i Netlify** (Site settings → Environment variables):
+
+```
+VITE_SUPABASE_URL       = https://<projekt>.supabase.co
+VITE_SUPABASE_ANON_KEY  = <anon-nøglen fra Supabase → API>
+```
+
+Uden dem kører appen i demo-tilstand: den husker kun i den ene browser, og kun
+eksempelkunden `100100` findes. Det er med vilje — så kan siden altid vises
+frem, også før databasen er på plads.
+
+**3. Peg domænet på sitet.** Netlify bygger med `npm run build` og udgiver
+`dist/`. SPA-omdirigeringen ligger allerede i `netlify.toml` og
+`public/_redirects`; uden den ville et direkte kundelink give 404.
+
+### Skift admin-koden
+
+```sql
+update portal_config set value = '<ny kode>' where key = 'admin_code';
+```
+
+Koden tjekkes i databasen, ikke i browseren — så den ligger ikke i det, kunden
+henter ned, og en forkert kode får intet at vide om kundelisten. **Men seks
+cifre er seks cifre:** en maskine kan prøve sig frem. Skal admin-delen bruges
+af flere end os, eller ligge åbent i længere tid, bør den have et rigtigt
+login. Det står som en åben ting i `SPEC.md`.
+
+## Kør den lokalt
+
+```bash
+npm install
+npm run dev        # http://localhost:5173
+```
+
+Uden `.env.local` kører den i demo-tilstand. Prøv `100100` for at se en kundes
+side og `100408` for kundelisten. Kopiér `.env.example` til `.env.local` og
+udfyld, hvis du vil køre mod den rigtige database.
+
+## To ting der er værd at kende, før du retter i den
+
+**Skrifterne må ikke blokere.** Google Fonts hentes med `media="print"` +
+`onload`, ikke som et almindeligt stylesheet. Et stylesheet i `<head>` holder
+modul-scriptet tilbage, til det er hentet — og kan Google ikke nås (dårligt
+mobilnet på et spillested), står kunden med en HELT tom skærm, til forbindelsen
+giver op. Målt i denne sandkasse, hvor Google er spærret: intet blev tegnet.
+Lav det aldrig om til et almindeligt `<link>`.
+
+**»Findes ikke« og »kunne ikke læses« skal holdes adskilt.** Datalaget svarer
+`null`, når koden ikke findes, og kaster, når noget går galt. Ellers ville en
+dårlig forbindelse se ud som en forkert kode, og kunden ville lede efter en
+tastefejl, der ikke findes. Slå dem aldrig sammen til ét svar.
 
 ## Hvor står hvad
 
 | Fil | Hvad står der |
 |---|---|
-| [`SPEC.md`](SPEC.md) | **Beskrivelsen af det nye site.** Den udfyldes først — alt andet følger af den. |
-| [`docs/MODUL-KILDER.md`](docs/MODUL-KILDER.md) | Oversigt over de eksisterende repos, og hvad der kan lånes fra hvert af dem. |
-| [`docs/UDGANGSPUNKT.md`](docs/UDGANGSPUNKT.md) | Hvad client.eventday.dk er i dag — hvad der virker, og hvad der er værd at gøre anderledes. |
-| [`prototype/kundeportal.html`](prototype/kundeportal.html) | Klikbar prototype: kundens portal med de seks knapper, plus oprettelse af kunder og adgang til deres portal. Én selvstændig fil uden byggetrin. |
-| `CLAUDE.md` | Arbejdsreglerne for projektet (kommunikation, stak, konventioner). |
+| [`SPEC.md`](SPEC.md) | Beskrivelsen af det færdige site. Kun delvist udfyldt — de seks knapper er bygget, resten af produktet mangler at blive beskrevet. |
+| [`docs/MODUL-KILDER.md`](docs/MODUL-KILDER.md) | De eksisterende projekter, og hvad der kan lånes fra hvert af dem. |
+| [`docs/UDGANGSPUNKT.md`](docs/UDGANGSPUNKT.md) | Hvad kundeportalen i EventFlow kan i dag, og hvad der er værd at gøre anderledes. |
+| [`prototype/kundeportal.html`](prototype/kundeportal.html) | Den første skitse i én fil. Den rigtige app har overhalet den — behold den kun som reference. |
+| `CLAUDE.md` | Arbejdsreglerne for projektet. |
 
-## Prototypen
+## Stak
 
-`prototype/kundeportal.html` er en enkelt fil uden afhængigheder — åbn den
-direkte i en browser. Den viser to ting:
-
-- **Kunder** — søg en kunde frem eller opret en ny. Hver kunde får sin egen
-  kode og sit eget portal-link, der kan kopieres og sendes.
-- **Kundens portal** (`?k=<kode>`) — eventkort med nedtælling og fremdrift,
-  og de seks knapper: hvad skal I lave, info fra jer, location, økonomi,
-  tidslinje, kontakt. Kun »info fra jer« skrives af kunden selv.
-
-Farver og skrifter er hentet fra EventFlow, så prototypen ligner EventDay.
-Kunde-data gemmes af den publicerede udgave; åbnet som en løs fil kører den på
-eksempelkunden alene.
-
-## Næste skridt
-
-1. Udfyld `SPEC.md` — den kan udfyldes i stikord eller i almindelig tale.
-2. Marker i `docs/MODUL-KILDER.md` hvilke repos der skal bidrage med noget.
-3. Så bygges skelettet og modulerne hentes ind, ét ad gangen.
+React 18 + Vite 5 + Tailwind 3 + react-router + Supabase — samme stak som
+EventFlow (`Teambattle1/eventday`), så moduler kan flyttes mellem de to uden at
+skulle skrives om. Farver og skrifter er hentet derfra.

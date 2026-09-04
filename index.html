@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#d4640a" />
+    <meta name="description" content="Din side til jeres event hos EventDay — program, praktisk info og kontakt ét sted." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Skrifterne hentes UDEN at blokere. Et almindeligt stylesheet i head
+         holder modul-scriptet tilbage, til det er hentet — og kan Google Fonts
+         ikke nås (dårligt net på et spillested), står kunden med en tom skærm,
+         til forbindelsen giver op. media="print" gør linket uinteressant for
+         skærmen, og onload skifter det til at gælde, når det ER hentet.
+         Indtil da tegnes siden med systemets egne skrifter. -->
+    <link rel="stylesheet" media="print" onload="this.media='all'"
+          href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" />
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" />
+    </noscript>
+    <title>EventDay · Jeres event</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
