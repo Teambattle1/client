@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Icon from '../lib/icons'
-import { SECTIONS, INFO_FIELDS, infoUdfyldt } from '../lib/model'
+import { SECTIONS, infoFieldsFor, infoUdfyldt } from '../lib/model'
 import { danskDato, dageTil, kr } from '../lib/format'
 import { hentKunde, gemInfo } from '../lib/data'
 import PortalSheet from '../components/PortalSheet'
 
 /* Kundens egen side. Åbnes med /p/<seks cifre>. */
 
-export default function Portal({ erAdmin }) {
+export default function Portal({ adminKode }) {
   const { code } = useParams()
   const navigate = useNavigate()
 
@@ -60,9 +60,12 @@ export default function Portal({ erAdmin }) {
             knap={{ tekst: 'Prøv igen', gør: () => window.location.reload() }} />
   )
 
-  const udfyldt = infoUdfyldt({ info })
+  // Spørgsmålene afhænger af hvad kunden har købt, så både tælleren og
+  // »MANGLER«-mærket skal regne på DEM — ikke på en fast liste.
+  const felter = infoFieldsFor(kunde)
+  const udfyldt = infoUdfyldt({ ...kunde, info })
   const dage = dageTil(kunde.eventDate)
-  const pct = Math.round((udfyldt / INFO_FIELDS.length) * 100)
+  const pct = felter.length ? Math.round((udfyldt / felter.length) * 100) : 100
 
   return (
     <div className="page">
@@ -71,7 +74,8 @@ export default function Portal({ erAdmin }) {
           <span className="brand-mark"><Icon name="flag" size={15} /></span>
           <span className="brand-name">EventDay</span>
           <span className="brand-spacer" />
-          {erAdmin && (
+          <button className="ghost-btn" onClick={() => navigate(`/p/${code}/print`)}>Print</button>
+          {adminKode && (
             <button className="ghost-btn" onClick={() => navigate('/admin')}>← Alle kunder</button>
           )}
         </div>
@@ -109,7 +113,7 @@ export default function Portal({ erAdmin }) {
           <div className="rail">
             <div className="rail-head">
               <span>Jeres oplysninger</span>
-              <span><b>{udfyldt}</b> af {INFO_FIELDS.length}</span>
+              <span><b>{udfyldt}</b> af {felter.length}</span>
             </div>
             <div className="rail-track">
               <div className="rail-fill" style={{ width: Math.max(pct, 3) + '%' }} />
@@ -120,13 +124,13 @@ export default function Portal({ erAdmin }) {
         <div className="grid">
           {SECTIONS.map(s => (
             <button className="tile" key={s.key} onClick={() => setSektion(s.key)}>
-              {s.key === 'info' && (udfyldt < INFO_FIELDS.length
+              {s.key === 'info' && (udfyldt < felter.length
                 ? <span className="tile-dot">Mangler</span>
                 : <span className="tile-check"><Icon name="check" size={18} color="rgba(255,255,255,.9)" /></span>)}
-              <span className="tile-icon"><Icon name={s.icon} size={22} /></span>
+              <span className="tile-icon"><Icon name={s.icon} size={46} /></span>
               <span className="tile-body">
                 <span className="tile-label">{s.label}</span>
-                <span className="tile-status">{status(s.key, kunde, udfyldt)}</span>
+                <span className="tile-status">{status(s.key, kunde, udfyldt, felter.length)}</span>
               </span>
             </button>
           ))}
@@ -144,19 +148,24 @@ export default function Portal({ erAdmin }) {
         <PortalSheet
           sektion={sektion} kunde={kunde} info={info}
           gemStatus={gemStatus} onInfo={ændreInfo} onLuk={() => setSektion(null)}
+          adminKode={adminKode} onKundeRettet={k => setKunde(k)}
         />
       )}
     </div>
   )
 }
 
-function status(key, kunde, udfyldt) {
+function status(key, kunde, udfyldt, antal) {
   if (key === 'opgave') return kunde.eventTitle || 'Jeres event'
-  if (key === 'info') return `${udfyldt} af ${INFO_FIELDS.length} udfyldt`
+  if (key === 'info') return `${udfyldt} af ${antal} udfyldt`
   if (key === 'location') return (kunde.sted || 'Ikke sat').split(',')[0]
   if (key === 'okonomi') return kunde.betalt ? 'Betalt' : kr(kunde.pris)
   if (key === 'tidslinje') return (kunde.program || []).length ? 'Start ' + (kunde.startTime || '—') : 'Kommer snart'
-  if (key === 'kontakt') return (kunde.gamemaster && kunde.gamemaster.navn) || 'Vi finder en'
+  if (key === 'kontakt') {
+    // Flisen viser den kunden oftest skal bruge: instruktøren på dagen.
+    const lead = kunde.leadInstruktor || kunde.gamemaster
+    return (lead && (lead.navn)) || 'Vi sætter navn på'
+  }
   return ''
 }
 

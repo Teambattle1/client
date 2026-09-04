@@ -1,0 +1,116 @@
+/* ---------------------------------------------------------------
+   Intro-animationen — husets, ikke en ny.
+
+   Samme opbygning som TeamTracks (components/intro.css) og EventFlows
+   (IntroAnimation): mørk fuldskærm, ordmærket der zoomer ind ude af fokus,
+   "by TEAMBATTLE" der glider op, en orange streg der vokser, et
+   versionsmærke i bunden — og partikler der driver i baggrunden.
+   Ændrer du takten her, så husk at de tre sider skal ligne hinanden.
+
+   Baggrunden er EventFlows egen (#0e0c09), ikke sort: portalen er
+   EventDays, og de to skal kunne stå ved siden af hinanden.
+----------------------------------------------------------------*/
+
+.intro-overlay{
+  position:fixed; inset:0; z-index:9999;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  background:#0e0c09; overflow:hidden; cursor:pointer;
+  font-family:'Outfit',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
+  animation:intro-fadeout .8s ease 4.2s forwards;
+}
+@keyframes intro-fadeout{ to{ opacity:0; pointer-events:none } }
+
+.intro-logo{
+  position:relative; z-index:2;
+  font-size:clamp(36px,9vw,72px); font-weight:700;
+  letter-spacing:clamp(2px,1vw,8px); text-transform:uppercase; white-space:nowrap;
+  opacity:0; animation:intro-zoom 1.5s ease .3s forwards;
+}
+.intro-logo .w{ color:#fff }
+.intro-logo .o{ color:#e87520 }
+@keyframes intro-zoom{
+  0%  { opacity:0; transform:scale(.3);  filter:blur(20px) }
+  60% { opacity:1; transform:scale(1.05); filter:blur(0) }
+  100%{ opacity:1; transform:scale(1);    filter:blur(0) }
+}
+
+.intro-sub{
+  position:relative; z-index:2;
+  margin-top:15px; font-size:18px; letter-spacing:4px;
+  opacity:0; animation:intro-slide 1s ease 1.8s forwards;
+}
+.intro-sub .by{ color:rgba(255,255,255,.45) }
+.intro-sub .w { color:#fff;    font-weight:700 }
+.intro-sub .o { color:#e87520; font-weight:700 }
+@keyframes intro-slide{
+  0%  { opacity:0; transform:translateY(20px) }
+  100%{ opacity:1; transform:translateY(0) }
+}
+
+.intro-line{
+  position:relative; z-index:2;
+  width:0; height:2px; margin-top:25px; background:#e87520;
+  animation:intro-line-grow 1.2s ease 2.5s forwards;
+}
+@keyframes intro-line-grow{ to{ width:200px } }
+
+/* Versionsmærket falder ind til sidst, på et billede der har lagt sig.
+   Bunden regnes med hjemme-stregen, så det ikke lander under den. */
+.intro-version{
+  position:absolute; left:50%; bottom:calc(var(--sa-bottom, 0px) + 36px);
+  transform:translateX(-50%);
+  font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  font-size:12px; font-weight:700; letter-spacing:2px;
+  color:rgba(232,117,32,.85);
+  padding:4px 10px; border:1px solid rgba(232,117,32,.35); border-radius:999px;
+  background:rgba(0,0,0,.5);
+  opacity:0; animation:intro-version-fade .8s ease 3.4s forwards;
+  pointer-events:none;
+}
+@keyframes intro-version-fade{
+  0%  { opacity:0; transform:translate(-50%,6px) }
+  100%{ opacity:1; transform:translate(-50%,0) }
+}
+
+/* Hintet om at man kan springe over. Kommer sent og dæmpet: det skal kunne
+   ses, uden at stjæle billedet fra ordmærket. */
+.intro-skip{
+  position:absolute; left:50%; top:calc(var(--sa-top, 0px) + 22px);
+  transform:translateX(-50%);
+  font-size:10px; font-weight:700; letter-spacing:.18em; text-transform:uppercase;
+  color:rgba(255,255,255,.35);
+  opacity:0; animation:intro-version-fade .6s ease 2.2s forwards;
+  pointer-events:none;
+}
+
+.intro-particles{ position:absolute; inset:0; z-index:1; pointer-events:none }
+.intro-particle{
+  position:absolute; width:3px; height:3px; border-radius:50%;
+  background:#e87520; box-shadow:0 0 6px rgba(232,117,32,.8);
+  animation-name:particle-drift,particle-twinkle;
+  animation-timing-function:ease-in-out,ease-in-out;
+  animation-iteration-count:infinite,infinite;
+}
+@keyframes particle-drift{
+  0%  { transform:translate(0,0) }
+  25% { transform:translate(18px,-24px) }
+  50% { transform:translate(-12px,-42px) }
+  75% { transform:translate(-26px,-18px) }
+  100%{ transform:translate(0,0) }
+}
+@keyframes particle-twinkle{
+  0%,100%{ opacity:.15 }
+  50%    { opacity:.9 }
+}
+
+/* Bevægelse er ikke gratis for alle. Bed enheden om mindre, og intro'en
+   bliver et stillbillede der forsvinder af sig selv — ikke en skærm der
+   hopper. Selve springet over sker i komponenten. */
+@media (prefers-reduced-motion:reduce){
+  .intro-overlay,.intro-logo,.intro-sub,.intro-line,.intro-version,
+  .intro-skip,.intro-particle{
+    animation:none !important;
+  }
+  .intro-logo,.intro-sub,.intro-version,.intro-skip{ opacity:1 }
+  .intro-line{ width:200px }
+}

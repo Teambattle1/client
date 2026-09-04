@@ -98,6 +98,28 @@ export async function hentKunder(adminKode) {
   return Array.isArray(data) ? data : []
 }
 
+/**
+ * Ret de felter der er VORES — ikke kundens egne svar.
+ *
+ * Kræver adminkoden, og databasen håndhæver selv hvilke felter der må røres
+ * (se migration 002). Kunden kan altså ikke skrive en anden instruktør på
+ * deres eget event, uanset hvad browseren sender.
+ */
+export async function opdaterKunde(adminKode, code, patch) {
+  if (demoTilstand) {
+    const alle = demoLæs()
+    if (!alle[code]) throw new Error('Kunden findes ikke')
+    alle[code] = { ...alle[code], ...patch }
+    demoSkriv(alle)
+    return alle[code]
+  }
+  const { data, error } = await supabase.rpc('portal_admin_update', {
+    p_code: code, p_admin: adminKode, p_patch: patch,
+  })
+  if (error) throw new Error(error.message)
+  return data
+}
+
 /** Opret en kunde og giv den en kode. Returnerer kunden med koden på. */
 export async function opretKunde(adminKode, felter) {
   if (demoTilstand) {

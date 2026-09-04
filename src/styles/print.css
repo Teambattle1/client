@@ -1,0 +1,97 @@
+/* ---------------------------------------------------------------
+   Én A4-side til at have i hånden på dagen.
+   Browserens egen »gem som PDF« bruges frem for et PDF-bibliotek:
+   teksten bliver ægte tekst (skarp, søgbar, kan markeres), kortet er
+   almindelige billeder, og der følger ingen 500 KB kode med appen.
+
+   Siden er ALTID lys, uanset hvilket tema skærmen står i: den skal
+   printes på hvidt papir, og et mørkt tema ville enten æde en patron
+   eller komme ud som grå tekst på grå bund.
+----------------------------------------------------------------*/
+
+.print-side{
+  color-scheme:light;
+  --p-blæk:#16140f; --p-dæmp:#5a564f; --p-linje:#d9d4cc;
+  --p-orange:#c25c07; --p-flade:#f6f4f0;
+  background:#fff; color:var(--p-blæk);
+  font-family:'Outfit',ui-sans-serif,system-ui,-apple-system,sans-serif;
+  width:210mm; min-height:297mm; margin:0 auto; padding:12mm 12mm 10mm;
+  font-size:10.2pt; line-height:1.35;
+  box-shadow:0 2px 24px rgba(0,0,0,.18);
+}
+.print-side *{box-sizing:border-box}
+.print-side h1,.print-side h2,.print-side h3{font-family:'Playfair Display',Georgia,serif;margin:0;line-height:1.15}
+
+/* topbjælke */
+.p-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10mm;
+  padding-bottom:4mm;border-bottom:2px solid var(--p-blæk)}
+.p-top h1{font-size:20pt;letter-spacing:-.01em}
+.p-firma{font-size:10.5pt;color:var(--p-dæmp);margin-top:1mm}
+.p-mærke{display:flex;align-items:center;gap:2.5mm;flex:0 0 auto}
+.p-mærke-ikon{width:9mm;height:9mm;border-radius:2.4mm;background:var(--p-orange);
+  display:grid;place-items:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.p-mærke-navn{font-size:8.5pt;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
+
+/* dagens fire tal øverst — det man kigger efter først */
+.p-fakta{display:grid;grid-template-columns:repeat(4,1fr);gap:4mm;margin:4mm 0 5mm}
+.p-fakta div{border:1px solid var(--p-linje);border-radius:2mm;padding:2.5mm 3mm}
+.p-fakta dt{font-size:7pt;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--p-dæmp)}
+.p-fakta dd{margin:1mm 0 0;font-size:12pt;font-weight:600;font-variant-numeric:tabular-nums}
+.p-fakta dd small{display:block;font-size:8.5pt;font-weight:500;color:var(--p-dæmp);margin-top:.5mm}
+
+.p-kolonner{display:grid;grid-template-columns:1fr 1fr;gap:6mm;align-items:start}
+.p-blok{margin-bottom:5mm;break-inside:avoid}
+.p-blok h2{font-size:8pt;font-weight:700;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--p-orange);padding-bottom:1.2mm;margin-bottom:2.5mm;border-bottom:1px solid var(--p-linje);
+  font-family:'Outfit',sans-serif}
+.p-blok p{margin:0 0 1.5mm}
+.p-dæmpet{color:var(--p-dæmp)}
+
+/* kort */
+.p-kort{width:100%;height:52mm;border:1px solid var(--p-linje);border-radius:2mm;
+  overflow:hidden;background:var(--p-flade);margin-bottom:2.5mm}
+.p-kort .leaflet-control-attribution{font-size:6pt}
+.p-naal{border-radius:50%;background:var(--p-orange);border:2.5px solid #fff;
+  box-shadow:0 0 0 1.5px rgba(0,0,0,.35);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.p-adresse{font-size:11pt;font-weight:600}
+
+/* tidslinje */
+.p-tid{list-style:none;margin:0;padding:0}
+.p-tid li{display:flex;gap:3mm;padding:1.6mm 0;border-bottom:1px dotted var(--p-linje);break-inside:avoid}
+.p-tid li:last-child{border-bottom:0}
+.p-tid time{flex:0 0 14mm;font-weight:700;font-variant-numeric:tabular-nums}
+.p-tid b{font-weight:600;display:block}
+.p-tid span{color:var(--p-dæmp);font-size:9pt}
+
+/* kontakter */
+.p-kontakt{display:flex;justify-content:space-between;gap:3mm;padding:1.8mm 0;
+  border-bottom:1px dotted var(--p-linje);break-inside:avoid}
+.p-kontakt:last-child{border-bottom:0}
+.p-kontakt-navn b{display:block;font-weight:600}
+.p-kontakt-navn span{font-size:8pt;color:var(--p-dæmp)}
+.p-kontakt-num{text-align:right;flex:0 0 auto;font-variant-numeric:tabular-nums}
+.p-kontakt-num b{display:block;font-weight:600}
+.p-kontakt-num span{font-size:8pt;color:var(--p-dæmp)}
+
+/* svar-liste */
+.p-svar{margin:0;display:grid;grid-template-columns:auto 1fr;gap:1.2mm 3mm;font-size:9.5pt}
+.p-svar dt{color:var(--p-dæmp)}
+.p-svar dd{margin:0;font-weight:600}
+
+.p-fod{margin-top:auto;padding-top:3mm;border-top:1px solid var(--p-linje);
+  display:flex;justify-content:space-between;font-size:8pt;color:var(--p-dæmp)}
+
+/* værktøjslinjen — kun på skærmen */
+.p-værktøj{max-width:210mm;margin:0 auto 5mm;display:flex;gap:2.5mm;align-items:center;
+  padding:0 12mm}
+.p-værktøj .btn{padding:10px 16px}
+
+@media print{
+  @page{size:A4 portrait;margin:0}
+  html,body{background:#fff!important;margin:0}
+  .p-værktøj{display:none!important}
+  .print-side{box-shadow:none;margin:0;width:auto;min-height:auto;padding:11mm 12mm}
+  /* Farverne bærer betydning her: den orange overskrift adskiller
+     afsnittene, og nålen viser hvor man skal hen. */
+  .print-side{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
