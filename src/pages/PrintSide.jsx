@@ -3,9 +3,10 @@ import { useParams } from 'react-router-dom'
 import Icon from '../lib/icons'
 import MiniKort from '../components/MiniKort'
 import { hentKunde } from '../lib/data'
-import { hentVenue, venueAdresse, konferenceKontakt } from '../lib/venues'
+import { hentVenue, venueAdresse, konferenceKontakt, ankomstNote } from '../lib/venues'
 import { hentAktivitet, aktivitetTekst, varighed } from '../lib/activities'
 import { infoFieldsFor } from '../lib/model'
+import { aktivitetsNavne, programRækker, aktiviteterFor, miljøTekst } from '../lib/aktivitetsplan'
 import { danskDato } from '../lib/format'
 import '../styles/print.css'
 
@@ -39,9 +40,8 @@ export default function PrintSide() {
         // De to opslag må gerne fejle hver for sig: en side uden kort er
         // stadig værd at printe, en side uden noget er ikke.
         const sted = (k.info && k.info.sted) || {}
-        if (sted.valg === 'vores' && sted.venueId) {
-          hentVenue(sted.venueId).then(v => { if (!død) setVenue(v) }).catch(() => {})
-        }
+        const vid = (sted.valg === 'vores' && sted.venueId) || (!sted.adresse && k.venueId) || ''
+        if (vid) hentVenue(vid).then(v => { if (!død) setVenue(v) }).catch(() => {})
         if (k.aktivitetId) {
           hentAktivitet(k.aktivitetId).then(a => { if (!død) setAkt(a) }).catch(() => {})
         }
@@ -58,20 +58,25 @@ export default function PrintSide() {
   const sted = info.sted || {}
   const egen = sted.valg === 'egen'
   const adresse = venue ? venueAdresse(venue) : egen ? (sted.adresse || '') : (kunde.sted || '')
-  const lat = venue ? venue.lat : (egen ? sted.lat : null)
-  const lon = venue ? venue.lon : (egen ? sted.lon : null)
+  const lat = venue ? venue.lat : (egen ? sted.lat : (kunde.stedLat ?? null))
+  const lon = venue ? venue.lon : (egen ? sted.lon : (kunde.stedLon ?? null))
   const konsulent = venue ? konferenceKontakt(venue) : null
   const gm = kunde.gamemaster || {}
   const lead = kunde.leadInstruktor || (gm.navn ? { navn: gm.navn, mail: gm.email, tlf: gm.telefon } : null)
-  const program = kunde.program || []
-  const aktNavn = (akt && akt.name) || kunde.aktivitetNavn || kunde.eventTitle || 'Jeres event'
+  const program = programRækker(kunde)
+  // Har de købt to ting, skal begge stå der — sedlen er dét, der ligger på
+  // bordet, når nogen spørger »hvad er det egentlig, vi skal?«.
+  const aktNavn = aktivitetsNavne(kunde) || (akt && akt.name) || kunde.eventTitle || 'Jeres event'
   const spilletid = varighed(akt && (akt.activity_minutes || akt.duration_minutes))
   const tekst = aktivitetTekst(akt, kunde.beskrivelse)
+  // Eget afsnit på arket: inde/ude og noten er dét, folk læser inden de
+  // pakker tasken — og de skal kunne findes uden at læse hele beskrivelsen.
+  const forhold = aktiviteterFor(kunde).filter(a => a.miljø || a.note)
 
   // Kun de svar der betyder noget på dagen — ikke hele formularen igen.
   const svar = infoFieldsFor(kunde)
     .filter(f => ['deltagere', 'hold', 'ankomst', 'allergi', 'logistik', 'bemaerk'].includes(f.key))
-    .map(f => [f.label, info[f.key]])
+    .map(f => [f.kort || f.label, info[f.key]])
     .filter(([, v]) => v && String(v).trim())
 
   return (
@@ -111,9 +116,11 @@ export default function PrintSide() {
               <p className="p-adresse">{adresse || 'Stedet er ikke sat endnu'}</p>
               {venue && <p className="p-dæmpet">{venue.name}</p>}
               {kunde.modested && !egen && <p>{kunde.modested}</p>}
-              {sted.adgang && (
-                <p style={{ marginTop: '2mm' }}><b>Sådan kommer vi ind:</b> {sted.adgang}</p>
-              )}
+              {venue && ankomstNote(venue)
+                ? <p style={{ marginTop: '2mm' }}><b>Sådan kommer I frem:</b> {ankomstNote(venue)}</p>
+                : sted.adgang
+                  ? <p style={{ marginTop: '2mm' }}><b>Sådan kommer vi ind:</b> {sted.adgang}</p>
+                  : null}
               {kunde.parkering && <p className="p-dæmpet">Parkering: {kunde.parkering}</p>}
             </section>
 
@@ -121,6 +128,19 @@ export default function PrintSide() {
               <section className="p-blok">
                 <h2>Hvad de skal lave</h2>
                 <p>{tekst}</p>
+              </section>
+            )}
+
+            {forhold.length > 0 && (
+              <section className="p-blok">
+                <h2>Inde eller ude</h2>
+                {forhold.map((a, i) => (
+                  <div className="p-forhold" key={a.id || i}>
+                    <b>{a.navn || 'Aktiviteten'}</b>
+                    {a.miljø && <span className="p-forhold-mærke">{miljøTekst(a.miljø, true)}</span>}
+                    {a.note && <span className="p-forhold-note">{a.note}</span>}
+                  </div>
+                ))}
               </section>
             )}
 
@@ -144,7 +164,13 @@ export default function PrintSide() {
                   {program.map((x, i) => (
                     <li key={i}>
                       <time>{x.tid}</time>
-                      <span><b>{x.titel}</b>{x.note ? <span>{x.note}</span> : null}</span>
+                      <span>
+                        <b>{x.titel}</b>
+                        {x.note ? <span>{x.note}</span> : null}
+                        {x.spor && x.spor.map((s, j) => (
+                          <span key={j} className="p-spor"><b>{s.gruppe}</b> {s.titel}</span>
+                        ))}
+                      </span>
                     </li>
                   ))}
                 </ul>

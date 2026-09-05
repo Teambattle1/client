@@ -522,3 +522,170 @@
     background:var(--accent-soft);border-bottom:1px solid rgba(212,100,10,.3);
     font-size:13px;line-height:1.4;color:var(--ink)}
 }
+
+@layer components{
+  /* ---- fjern en kunde (langt tryk) ---- */
+  /* Mens man holder: rækken trækker sig en anelse sammen og en orange streg
+     løber igennem. Uden den er der 650 ms, hvor man ikke kan se, om
+     telefonen overhovedet har opdaget fingeren. */
+  .crow{position:relative;overflow:hidden;transition:transform .12s}
+  .crow.holder{transform:scale(.985)}
+  .crow-hold{position:absolute;left:0;bottom:0;height:3px;background:var(--accent);
+    width:0;animation:crow-hold .65s linear forwards}
+  @keyframes crow-hold{to{width:100%}}
+  @media (prefers-reduced-motion:reduce){ .crow-hold{animation:none;width:100%;opacity:.5} }
+
+  .crow.skjult{opacity:.62;border-style:dashed}
+  .crow-mærke{display:inline-block;margin-left:7px;padding:1px 7px;border-radius:99px;
+    font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--dim);border:1px solid currentColor;vertical-align:1px}
+
+  .liste-fod{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    flex-wrap:wrap;margin-top:12px;font-size:12.5px;color:var(--muted)}
+
+  /* Advarslen: rolig, ikke rød over det hele. Det ER til at fortryde, og et
+     panel der skriger, får folk til at trykke »fortryd« på noget de gerne
+     ville have gjort. */
+  .advarsel{background:var(--surface2);border:1px solid var(--line2);border-radius:12px;
+    padding:14px;margin-bottom:14px}
+  .advarsel p{font-size:14px;line-height:1.5;color:var(--ink);margin-bottom:9px}
+  .advarsel p:last-child{margin-bottom:0}
+  .tile-icon.fare{background:var(--red)}
+  .btn-fare{background:var(--red);color:#fff;box-shadow:var(--shadow)}
+  .btn-fare:disabled{opacity:.6}
+}
+
+@layer components{
+  /* ---- flere aktiviteter og flere shows ---- */
+  .akt-vælger select{width:100%}
+  .akt-valgte{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:9px}
+  .akt-mærke{display:inline-flex;align-items:center;gap:7px;padding:6px 8px 6px 11px;
+    border-radius:99px;background:var(--accent-soft);border:1px solid rgba(212,100,10,.3);
+    font-size:13.5px;font-weight:600}
+  .akt-mærke b{font-size:11px;color:var(--accent);font-variant-numeric:tabular-nums}
+  .akt-mærke button{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;
+    color:var(--muted);background:var(--surface)}
+  .akt-mærke button:hover{color:var(--red)}
+
+  /* Hvert kort er én aktivitet — nummeret gør det tydeligt, at der er flere. */
+  .akt-kort{border-top:1px solid var(--line);padding-top:14px;margin-top:4px}
+  .akt-kort:first-of-type{border-top:0;padding-top:0}
+  .akt-nr{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;
+    margin-right:8px;background:var(--accent);color:var(--on-accent);
+    font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;vertical-align:2px}
+  .akt-tid{margin-left:9px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;
+    color:var(--muted);letter-spacing:.02em}
+
+  .st-gruppe{margin-bottom:16px}
+  .st-gruppe-navn{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:7px}
+  .st-show{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+  .st-show:first-of-type{border-top:0;padding-top:0;margin-top:0}
+}
+
+@layer components{
+  /* ---- samtidige spor på kundens tidslinje ---- */
+  .tl-spor-vis{display:grid;gap:5px;margin-top:7px}
+  .tl-spor-vis span{display:flex;gap:9px;align-items:baseline;font-size:13.5px;color:var(--ink);
+    background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:6px 10px}
+  .tl-spor-vis b{flex:0 0 auto;font-size:10.5px;font-weight:800;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--accent)}
+  .tl li.tl-par .tl-dot{background:var(--accent)}
+
+  /* ---- vores egen redigering ---- */
+  .tl-ret{display:grid;gap:10px;margin-bottom:12px}
+  .tl-række{background:var(--surface2);border:1px solid var(--line2);border-radius:12px;padding:11px}
+  .tl-række.parallel{border-color:var(--accent);background:var(--accent-soft)}
+  .tl-række-top{display:flex;gap:7px;align-items:center}
+  .tl-række input,.tl-række select{width:100%;background:var(--surface);border:1px solid var(--line2);
+    border-radius:9px;padding:9px 10px;font-size:14.5px}
+  .tl-tid{flex:0 0 68px;width:68px!important;text-align:center;font-variant-numeric:tabular-nums;font-weight:600}
+  .tl-note{margin-top:7px}
+  .tl-knapper{display:flex;gap:4px;flex:0 0 auto}
+  .tl-mini{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;
+    border:1px solid var(--line2);background:var(--surface);font-size:14px;color:var(--muted)}
+  .tl-mini:disabled{opacity:.35}
+  .tl-mini.fjern:hover{color:var(--red);border-color:var(--red)}
+  .tl-spor{display:grid;gap:7px;margin-top:8px}
+  .tl-spor-linje{display:grid;grid-template-columns:1fr 1.3fr;gap:7px}
+  .tl-form{margin-top:9px;font-size:12px;font-weight:600;color:var(--muted);text-decoration:underline}
+  .tl-form:hover{color:var(--accent)}
+}
+
+@layer components{
+  /* ---- stedet: opslag, adresse og nål ---- */
+  .sted-vælger{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .sted-række{display:flex;gap:7px;align-items:center}
+  .sted-række input{flex:1;min-width:0;background:var(--surface);border:1px solid var(--line2);
+    border-radius:10px;padding:11px 12px;font-size:15px}
+  .sted-række .ghost-btn{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .sted-venues{margin-top:10px;background:var(--surface);border:1px solid var(--line2);
+    border-radius:11px;padding:10px}
+  .sted-venues .venue-liste{max-height:220px;overflow-y:auto}
+
+  /* Nålen man selv sætter er større end den, kunden får vist: den skal
+     kunne rammes med en tommelfinger, ikke bare ses. */
+  .placer-kort{margin-top:10px;cursor:crosshair}
+  .kort-naal.placer{border-radius:50%;background:var(--accent);border:3px solid #fff;
+    box-shadow:0 0 0 1px rgba(0,0,0,.3),0 2px 8px rgba(0,0,0,.4);cursor:grab}
+  .kort-naal.placer:active{cursor:grabbing}
+}
+
+@layer components{
+  /* ---- inde/ude og noten pr. aktivitet ---- */
+  .akt-kort-ret{background:var(--surface);border:1px solid var(--line2);border-radius:11px;
+    padding:11px;margin-bottom:8px}
+  .akt-kort-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}
+  .akt-kort-top b{display:flex;align-items:center;gap:8px;font-size:14.5px;min-width:0}
+  .akt-kort-nr{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;
+    flex:0 0 auto;background:var(--accent);color:var(--on-accent);font-size:11.5px;font-weight:700}
+  .akt-fjern{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;flex:0 0 auto;
+    color:var(--muted);border:1px solid var(--line2)}
+  .akt-fjern:hover{color:var(--red);border-color:var(--red)}
+
+  /* Tre knapper frem for en rulleliste: valget er tre ting, og det skal
+     kunne ses hvad der ER valgt uden at åbne noget. */
+  .miljø-valg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+  .miljø-knap{padding:8px 4px;border-radius:9px;border:1.5px solid var(--line2);
+    background:var(--surface2);font-size:13px;font-weight:600;color:var(--muted);
+    transition:border-color .15s,color .15s,background .15s}
+  .miljø-knap.valgt{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+  .akt-note{width:100%;background:var(--surface2);border:1px solid var(--line2);
+    border-radius:9px;padding:9px 10px;font-size:14px}
+
+  /* Kundens side */
+  .miljø-mærke{margin-left:9px;padding:2px 8px;border-radius:99px;
+    background:var(--accent-soft);border:1px solid rgba(212,100,10,.3);color:var(--accent);
+    font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;letter-spacing:.04em;
+    text-transform:uppercase;vertical-align:3px}
+  .akt-note-vis{font-size:14.5px;color:var(--ink);font-weight:600;margin-bottom:10px;
+    padding-left:11px;border-left:3px solid var(--accent)}
+}
+
+@layer components{
+  /* ---- stedet er sat af os ---- */
+  .vores-sted{display:flex;align-items:flex-start;gap:11px;background:var(--surface2);
+    border:1px solid var(--line2);border-radius:12px;padding:12px;margin-bottom:10px}
+  .vores-sted-ikon{flex:0 0 auto;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+    background:linear-gradient(140deg,var(--accent-l),var(--accent-d));box-shadow:var(--shadow-tile)}
+  .vores-sted b{display:block;font-size:15px;line-height:1.3}
+  .vores-sted span{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+
+}
+
+@layer components{
+  /* ---- valg som knapper, ikke som en rulleliste ---- */
+  /* En <select> åbner systemets egen popup på en telefon: den dækker det
+     halve af skærmen og ligner alt andet end vores side. Med to-tre valg
+     er der ingen grund til at gemme dem bag et tryk. */
+  .valg-knapper{display:grid;gap:8px}
+  .valg-knap{display:flex;align-items:center;gap:11px;text-align:left;width:100%;
+    padding:13px 14px;border-radius:12px;border:1.5px solid var(--line2);
+    background:var(--surface2);font-size:15px;font-weight:600;line-height:1.3;
+    transition:border-color .15s,background .15s,color .15s}
+  .valg-knap:hover{border-color:var(--accent)}
+  .valg-knap.valgt{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+  .valg-prik{flex:0 0 auto;width:20px;height:20px;border-radius:50%;
+    border:2px solid var(--line2);background:var(--surface);transition:border-color .15s}
+  .valg-knap.valgt .valg-prik{border-color:var(--accent);border-width:6px}
+}

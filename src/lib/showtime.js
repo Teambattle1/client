@@ -1,3 +1,5 @@
+import { showtimesFor, synligeShowtimes } from './aktivitetsplan'
+
 /**
  * Showtime — billederne og resultatlisten fra dagen.
  *
@@ -62,12 +64,29 @@ export function showtimeUrl(kunde) {
  * igennem, og en knap der åbner et halvfærdigt show er værre end ingen knap.
  */
 export function showtimeKlar(kunde) {
-  return !!(kunde && kunde.showtimeAktiv && showtimeUrl(kunde))
+  return synligeShowtimes(kunde).length > 0
 }
 
-/** Hvad der står under knappen. Kunden ser kun den ene tilstand. */
+/**
+ * Hvad der står under knappen.
+ *
+ * Har kunden købt to ting, er der to shows, og tallet skal med: »1 af 2
+ * vist« er forskellen på at være færdig og at tro man er det.
+ */
 export function showtimeStatus(kunde, admin) {
-  if (showtimeKlar(kunde)) return admin ? 'Vist for kunden' : 'Billeder og resultater'
-  if (!admin) return ''
-  return showtimeUrl(kunde) ? 'Link sat · skjult for kunden' : 'Intet link endnu'
+  const alle = showtimesFor(kunde)
+  const synlige = synligeShowtimes(kunde)
+  const medLink = alle.filter(s => s.url).length
+
+  if (!admin) {
+    if (!synlige.length) return ''
+    return synlige.length > 1 ? `${synlige.length} shows` : 'Billeder og resultater'
+  }
+  if (!alle.length) return 'Ingen aktivitet valgt'
+  if (alle.length === 1) {
+    if (synlige.length) return 'Vist for kunden'
+    return medLink ? 'Link sat · skjult for kunden' : 'Intet link endnu'
+  }
+  if (!medLink) return `Intet link endnu · ${alle.length} aktiviteter`
+  return `${synlige.length} af ${alle.length} vist for kunden`
 }

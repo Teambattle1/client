@@ -50,6 +50,7 @@ export default function Landing({ onAdmin }) {
       <div className="wrap">
         <div className="gate">
           <div className="gate-mark"><Icon name="flag" size={26} /></div>
+          <div className="eyebrow" style={{ marginBottom: 9 }}>Velkommen til TeamBattle</div>
           <h1>Jeres event hos EventDay</h1>
           <p>Tast de seks cifre I har fået fra os, så åbner jeres egen side.</p>
 
@@ -74,7 +75,7 @@ export default function Landing({ onAdmin }) {
           </div>
 
           <p className="gate-help">
-            Kan I ikke finde koden? Den står i bekræftelsen fra os. Ellers ring på 40 27 40 27,
+            Kan I ikke finde koden? Den står i mailen fra os. Ellers ring på 40 27 40 27,
             så finder vi jeres side frem.
           </p>
 

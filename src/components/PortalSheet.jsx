@@ -2,8 +2,12 @@ import { useEffect, useState } from 'react'
 import Icon from '../lib/icons'
 import { SECTIONS, infoFieldsFor } from '../lib/model'
 import { kr, initialer } from '../lib/format'
-import { hentVenue, venueAdresse, konferenceKontakt } from '../lib/venues'
-import { hentAktivitet, aktivitetTekst, varighed } from '../lib/activities'
+import { hentVenue, venueAdresse, konferenceKontakt, ankomstNote } from '../lib/venues'
+import { hentAktivitet, hentAktiviteter, aktivitetTekst, varighed } from '../lib/activities'
+import { aktiviteterFor, aktivitetsFelter, programRækker, miljøTekst } from '../lib/aktivitetsplan'
+import AktivitetsVaelger from './AktivitetsVaelger'
+import TidslinjeRet from './TidslinjeRet'
+import StedVaelger from './StedVaelger'
 import { hentMedarbejdere, planlæggerGrupper, somKontakt } from '../lib/crew'
 import { opdaterKunde } from '../lib/data'
 import Showtime from './Showtime'
@@ -23,11 +27,12 @@ export default function PortalSheet({ sektion, kunde, info, gemStatus, onInfo, o
   if (!s) return null
 
   const indhold = {
-    opgave: <Opgave kunde={kunde} />,
-    info: <Info felter={infoFieldsFor(kunde)} info={info} gemStatus={gemStatus} onInfo={onInfo} admin={!!adminKode} />,
-    location: <Location kunde={kunde} info={info} />,
+    opgave: <Opgave kunde={kunde} adminKode={adminKode} onRettet={onKundeRettet} />,
+    info: <Info felter={infoFieldsFor(kunde)} info={info} gemStatus={gemStatus} onInfo={onInfo}
+                 admin={!!adminKode} kunde={kunde} />,
+    location: <Location kunde={kunde} info={info} adminKode={adminKode} onRettet={onKundeRettet} />,
     okonomi: <Okonomi kunde={kunde} />,
-    tidslinje: <Tidslinje kunde={kunde} />,
+    tidslinje: <Tidslinje kunde={kunde} adminKode={adminKode} onRettet={onKundeRettet} />,
     kontakt: <Kontakter kunde={kunde} info={info} adminKode={adminKode} onRettet={onKundeRettet} />,
     showtime: <Showtime kunde={kunde} adminKode={adminKode} onRettet={onKundeRettet} onLuk={onLuk} />,
   }[s.key]
@@ -61,45 +66,27 @@ export default function PortalSheet({ sektion, kunde, info, gemStatus, onInfo, o
  * skrev på kunden. Der står hellere ingen tekst end en, kunden ikke kan
  * bruge til noget.
  */
-function Opgave({ kunde }) {
-  const [akt, setAkt] = useState(null)
+function Opgave({ kunde, adminKode, onRettet }) {
+  const liste = aktiviteterFor(kunde)
   const med = kunde.inkluderet || []
-
-  useEffect(() => {
-    if (!kunde.aktivitetId) return
-    let død = false
-    hentAktivitet(kunde.aktivitetId)
-      .then(a => { if (!død) setAkt(a) })
-      .catch(() => { /* kataloget svarer ikke — vi viser det vi selv har */ })
-    return () => { død = true }
-  }, [kunde.aktivitetId])
-
-  const navn = (akt && akt.name) || kunde.eventTitle || ''
-  const tekst = aktivitetTekst(akt, kunde.beskrivelse)
-  const spilletid = varighed(akt && (akt.activity_minutes || akt.duration_minutes))
-  const deltagere = akt && (akt.min_participants || akt.max_participants)
-    ? [akt.min_participants, akt.max_participants].filter(Boolean).join('–') + ' deltagere'
-    : (kunde.deltagere ? `${kunde.deltagere} deltagere` : '—')
 
   return (
     <>
-      {akt && akt.cover_image_url && (
-        <img src={akt.cover_image_url} alt="" loading="lazy" className="akt-billede"
-             onError={e => { e.currentTarget.style.display = 'none' }} />
+      {liste.length > 1 && (
+        <p className="lede">
+          I har købt {liste.length} aktiviteter. Se tidslinjen for, hvornår I laver hvad —
+          som regel deles I i grupper og bytter undervejs.
+        </p>
       )}
 
-      {navn && <h3 className="akt-navn">{navn}</h3>}
-
-      <p className="lede">
-        {tekst || 'Beskrivelsen af jeres aktivitet lægges ind her, når den er på plads. Ring endelig, hvis I vil vide mere allerede nu.'}
-      </p>
-
-      {akt && akt.venue_requirements && (
-        <div className="block">
-          <h3>Det kræver stedet</h3>
-          <p style={{ color: 'var(--ink)', whiteSpace: 'pre-wrap' }}>{akt.venue_requirements}</p>
-        </div>
-      )}
+      {liste.length
+        ? liste.map((a, i) => <EnAktivitet key={a.id || i} valgt={a} kunde={kunde} nummer={liste.length > 1 ? i + 1 : 0} />)
+        : (
+          <p className="lede">
+            Beskrivelsen af jeres aktivitet lægges ind her, når den er på plads.
+            Ring endelig, hvis I vil vide mere allerede nu.
+          </p>
+        )}
 
       <div className="block">
         <h3>Det er med i prisen</h3>
@@ -109,20 +96,129 @@ function Opgave({ kunde }) {
       </div>
 
       <dl style={{ margin: 0 }}>
-        {spilletid && <Rk t="Selve aktiviteten" v={spilletid} />}
         <Rk t="I er i gang" v={`${kunde.startTime || '—'}${kunde.endTime ? '–' + kunde.endTime : ''}`} />
-        <Rk t="Deltagere" v={deltagere} />
+        <Rk t="Deltagere" v={kunde.deltagere ? `${kunde.deltagere} deltagere` : '—'} />
         <Rk t="Vejret" v="Vi gennemfører i alt vejr" />
       </dl>
 
+      {adminKode && <RetAktiviteter kunde={kunde} adminKode={adminKode} onRettet={onRettet} />}
+    </>
+  )
+}
+
+/**
+ * Én aktivitet, hentet fra kataloget.
+ *
+ * Hver aktivitet henter sig selv. Det er ét opslag mere pr. aktivitet, men
+ * det holder fejlen lokal: svarer kataloget ikke på den ene, står den anden
+ * der stadig med sit billede og sin tekst.
+ */
+function EnAktivitet({ valgt, kunde, nummer }) {
+  const [akt, setAkt] = useState(null)
+
+  useEffect(() => {
+    if (!valgt.id) return
+    let død = false
+    hentAktivitet(valgt.id)
+      .then(a => { if (!død) setAkt(a) })
+      .catch(() => { /* kataloget svarer ikke — vi viser det vi selv har */ })
+    return () => { død = true }
+  }, [valgt.id])
+
+  const navn = (akt && akt.name) || valgt.navn || kunde.eventTitle || ''
+  const tekst = aktivitetTekst(akt, nummer <= 1 ? kunde.beskrivelse : '')
+  const spilletid = varighed(akt && (akt.activity_minutes || akt.duration_minutes))
+  const spænd = akt && (akt.min_participants || akt.max_participants)
+    ? [akt.min_participants, akt.max_participants].filter(Boolean).join('–') + ' deltagere'
+    : ''
+
+  return (
+    <div className={nummer ? 'akt-kort' : ''}>
+      {akt && akt.cover_image_url && (
+        <img src={akt.cover_image_url} alt="" loading="lazy" className="akt-billede"
+             onError={e => { e.currentTarget.style.display = 'none' }} />
+      )}
+
+      {navn && (
+        <h3 className="akt-navn">
+          {nummer ? <span className="akt-nr">{nummer}</span> : null}{navn}
+          {spilletid && <span className="akt-tid">{spilletid}</span>}
+          {valgt.miljø && <span className="miljø-mærke">{miljøTekst(valgt.miljø, true)}</span>}
+        </h3>
+      )}
+
+      {/* Vores egen note står FØR katalogteksten: det er den ene sætning,
+          der gælder netop deres dag, og den skal ikke ligge under et afsnit,
+          man måske ikke læser til ende. */}
+      {valgt.note && <p className="akt-note-vis">{valgt.note}</p>}
+
+      <p className="lede" style={{ marginBottom: 12 }}>
+        {tekst || 'Beskrivelsen lægges ind her, når den er på plads.'}
+      </p>
+
+      {/* Deltagerspændet hører til AKTIVITETEN, ikke til dagen: to
+          aktiviteter kan have hvert sit, og et enkelt tal nederst kunne
+          derfor kun være rigtigt for den ene. */}
+      {spænd && <p className="hint" style={{ marginTop: -6, marginBottom: 12 }}>{spænd}</p>}
+
+      {akt && akt.venue_requirements && (
+        <div className="block">
+          <h3>Det kræver stedet</h3>
+          <p style={{ color: 'var(--ink)', whiteSpace: 'pre-wrap' }}>{akt.venue_requirements}</p>
+        </div>
+      )}
+
       {akt && akt.external_pdf_url && (
-        <div className="actions" style={{ marginTop: 14 }}>
+        <div className="actions" style={{ marginBottom: 14 }}>
           <a className="btn btn-quiet" href={akt.external_pdf_url} target="_blank" rel="noopener noreferrer">
-            Læs mere om aktiviteten
+            Læs mere om {navn || 'aktiviteten'}
           </a>
         </div>
       )}
-    </>
+    </div>
+  )
+}
+
+/** Ret listen bagefter — kun for os. Samme vælger som ved oprettelsen. */
+function RetAktiviteter({ kunde, adminKode, onRettet }) {
+  const [katalog, setKatalog] = useState([])
+  const [valgte, setValgte] = useState(() => aktiviteterFor(kunde))
+  const [gemmer, setGemmer] = useState(false)
+  const [fejl, setFejl] = useState(null)
+  const [kvittering, setKvittering] = useState(null)
+
+  useEffect(() => {
+    let død = false
+    hentAktiviteter().then(a => { if (!død) setKatalog(a) }).catch(() => setFejl('Kataloget kunne ikke hentes.'))
+    return () => { død = true }
+  }, [])
+
+  async function gem() {
+    setGemmer(true); setFejl(null); setKvittering(null)
+    try {
+      onRettet?.(await opdaterKunde(adminKode, kunde.code, aktivitetsFelter(valgte)))
+      setKvittering('Gemt')
+      setTimeout(() => setKvittering(null), 2600)
+    } catch (e) {
+      setFejl('Kunne ikke gemme: ' + e.message)
+    } finally { setGemmer(false) }
+  }
+
+  return (
+    <div className="block" style={{ marginTop: 18 }}>
+      <h3>Ret aktiviteterne (kun os)</h3>
+      <AktivitetsVaelger aktiviteter={katalog} valgte={valgte} onÆndre={setValgte} />
+      {fejl && <p style={{ color: 'var(--red)', fontSize: 14, marginTop: 8 }}>{fejl}</p>}
+      {kvittering && <p style={{ color: 'var(--green)', fontSize: 14, marginTop: 8 }}>{kvittering}</p>}
+      <div className="actions" style={{ marginTop: 10 }}>
+        <button className="btn btn-primary" onClick={gem} disabled={gemmer}>
+          {gemmer ? 'Gemmer …' : 'Gem aktiviteter'}
+        </button>
+      </div>
+      <p className="hint" style={{ marginTop: 8 }}>
+        Hver aktivitet får sit eget showtime, og tidslinjen kan køre dem samtidig i grupper.
+      </p>
+    </div>
   )
 }
 
@@ -134,7 +230,7 @@ function Opgave({ kunde }) {
  * stedet (sammensat), en kontaktperson (navn + nummer + mail), fritekst og
  * en almindelig linje.
  */
-function Info({ felter, info, gemStatus, onInfo, admin }) {
+function Info({ felter, info, gemStatus, onInfo, admin, kunde }) {
   return (
     <>
       <p className="lede">
@@ -147,17 +243,16 @@ function Info({ felter, info, gemStatus, onInfo, admin }) {
             ? <span className="felt-titel">{f.label}</span>
             : <label htmlFor={'f-' + f.key}>{f.label}</label>}
           {f.type === 'venue' ? (
-            <VenueVaelger værdi={info[f.key]} onÆndre={v => onInfo(f.key, v)} admin={admin} />
+            <VenueVaelger værdi={info[f.key]} onÆndre={v => onInfo(f.key, v)} admin={admin}
+                          voresSted={{ sted: kunde.sted || '', lat: kunde.stedLat ?? null, lon: kunde.stedLon ?? null,
+                                       venueId: kunde.venueId || '' }} />
           ) : f.type === 'kontakt' ? (
             <KontaktFelt k={info[f.key]} onÆndre={v => onInfo(f.key, v)} navnId={'f-' + f.key} />
           ) : f.type === 'textarea' ? (
             <textarea id={'f-' + f.key} value={info[f.key] || ''} placeholder={f.ph || ''}
                       onChange={e => onInfo(f.key, e.target.value)} />
           ) : f.type === 'select' ? (
-            <select id={'f-' + f.key} value={info[f.key] || ''} onChange={e => onInfo(f.key, e.target.value)}>
-              <option value="">Vælg …</option>
-              {f.options.map(o => <option key={o}>{o}</option>)}
-            </select>
+            <Valg felt={f} værdi={info[f.key] || ''} onÆndre={v => onInfo(f.key, v)} />
           ) : (
             <input id={'f-' + f.key} type="text" value={info[f.key] || ''} placeholder={f.ph || ''}
                    onChange={e => onInfo(f.key, e.target.value)} />
@@ -171,6 +266,39 @@ function Info({ felter, info, gemStatus, onInfo, admin }) {
         {gemStatus === 'fejl' && <span style={{ color: 'var(--red)' }}>Kunne ikke gemme — prøv igen om lidt</span>}
       </div>
     </>
+  )
+}
+
+/**
+ * Et valg med FÅ muligheder — som knapper, ikke som en rulleliste.
+ *
+ * En <select> på en telefon åbner systemets egen hjul-popup: den dækker
+ * halvdelen af skærmen, ser ud som alt andet end vores side, og man kan ikke
+ * se mulighederne, før man har trykket. Med to valg er der ingen grund til
+ * at gemme dem — så står de bare der, og ét tryk er nok.
+ *
+ * Et gammelt svar, der ikke længere er en mulighed, får sin egen knap.
+ * Ellers ville kunden se et tomt valg og tro, de aldrig fik svaret.
+ */
+function Valg({ felt, værdi, onÆndre }) {
+  const muligheder = [...felt.options]
+  if (værdi && !muligheder.includes(værdi)) muligheder.push(værdi)
+
+  return (
+    <div className="valg-knapper" role="radiogroup" aria-label={felt.label} id={'f-' + felt.key}>
+      {muligheder.map(o => (
+        <button
+          type="button" key={o} role="radio" aria-checked={værdi === o}
+          className={'valg-knap' + (værdi === o ? ' valgt' : '')}
+          // Et tryk på det valgte fortryder det: et fejltryk skal kunne
+          // tages tilbage uden at man skal vælge noget andet i stedet.
+          onClick={() => onÆndre(værdi === o ? '' : o)}
+        >
+          <span className="valg-prik" aria-hidden="true" />
+          {o}
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -204,27 +332,33 @@ function KontaktFelt({ k, onÆndre, navnId }) {
  * Er det et af vores steder, står stedets egen konferencekonsulent her — med
  * den linje der er hele pointen: kunden skal IKKE selv aftale noget med dem.
  */
-function Location({ kunde, info }) {
+function Location({ kunde, info, adminKode, onRettet }) {
   const svar = (info && info.sted) || {}
   const [venue, setVenue] = useState(null)
   const [venueFejl, setVenueFejl] = useState(false)
 
+  // Stedet kan være valgt af kunden (gamle svar) ELLER sat af os. Begge
+  // veje ender i den samme række i venue-systemet.
+  const venueId = (svar.valg === 'vores' && svar.venueId) || (!svar.adresse && kunde.venueId) || ''
+
   useEffect(() => {
-    if (svar.valg !== 'vores' || !svar.venueId) { setVenue(null); return }
+    if (!venueId) { setVenue(null); return }
     let død = false
     setVenueFejl(false)
-    hentVenue(svar.venueId)
+    hentVenue(venueId)
       .then(v => { if (!død) setVenue(v) })
       .catch(() => { if (!død) setVenueFejl(true) })
     return () => { død = true }
-  }, [svar.valg, svar.venueId])
+  }, [venueId])
 
   const egen = svar.valg === 'egen'
   const adresse = venue ? venueAdresse(venue)
     : egen ? (svar.adresse || '')
     : (kunde.sted || '')
-  const lat = venue ? venue.lat : (egen ? svar.lat : null)
-  const lon = venue ? venue.lon : (egen ? svar.lon : null)
+  // Kundens eget svar vinder; ellers står vores egen nål. Det er dét, der
+  // gør, at kortet er der fra dag ét — også før kunden har svaret på noget.
+  const lat = venue ? venue.lat : (egen ? svar.lat : (kunde.stedLat ?? null))
+  const lon = venue ? venue.lon : (egen ? svar.lon : (kunde.stedLon ?? null))
   const konsulent = venue ? konferenceKontakt(venue) : null
   const logistik = (info && info.logistik) || ''
 
@@ -245,19 +379,27 @@ function Location({ kunde, info }) {
         </p>
       )}
 
-      {egen && svar.adgang && (
+      {svar.adgang && (
         <div className="block">
           <h3>Sådan kommer vi ind</h3>
           <p style={{ color: 'var(--ink)', whiteSpace: 'pre-wrap' }}>{svar.adgang}</p>
         </div>
       )}
 
-      {logistik && (
+      {/* Er det et af VORES steder, kommer ankomstforholdene derfra —
+          skrevet af dem, der kender stedet. Ellers står kundens eget svar. */}
+      {venue && ankomstNote(venue) ? (
         <div className="block">
-          <h3>Særlige forhold</h3>
+          <h3>Sådan kommer I frem</h3>
+          <p style={{ color: 'var(--ink)', whiteSpace: 'pre-wrap' }}>{ankomstNote(venue)}</p>
+          <p className="hint" style={{ marginTop: 8 }}>Fra stedets egen beskrivelse.</p>
+        </div>
+      ) : logistik ? (
+        <div className="block">
+          <h3>Særlige forhold ved ankomst</h3>
           <p style={{ color: 'var(--ink)', whiteSpace: 'pre-wrap' }}>{logistik}</p>
         </div>
-      )}
+      ) : null}
 
       {venue && (
         <p className="hint" style={{ marginBottom: 14 }}>
@@ -282,7 +424,51 @@ function Location({ kunde, info }) {
           </a>
         </div>
       )}
+
+      {adminKode && <RetSted kunde={kunde} adminKode={adminKode} onRettet={onRettet} />}
     </>
+  )
+}
+
+/** Sæt eller ret stedet — kun for os. Samme opslag som ved oprettelsen. */
+function RetSted({ kunde, adminKode, onRettet }) {
+  const [værdi, setVærdi] = useState({
+    sted: kunde.sted || '', venueId: kunde.venueId || '',
+    lat: kunde.stedLat ?? null, lon: kunde.stedLon ?? null,
+  })
+  const [gemmer, setGemmer] = useState(false)
+  const [fejl, setFejl] = useState(null)
+  const [kvittering, setKvittering] = useState(null)
+
+  async function gem() {
+    setGemmer(true); setFejl(null); setKvittering(null)
+    try {
+      onRettet?.(await opdaterKunde(adminKode, kunde.code, {
+        sted: værdi.sted || '', venueId: værdi.venueId || '',
+        stedLat: værdi.lat ?? null, stedLon: værdi.lon ?? null,
+      }))
+      setKvittering('Gemt')
+      setTimeout(() => setKvittering(null), 2600)
+    } catch (e) {
+      setFejl('Kunne ikke gemme: ' + e.message)
+    } finally { setGemmer(false) }
+  }
+
+  return (
+    <div className="block" style={{ marginTop: 18 }}>
+      <h3>Ret stedet (kun os)</h3>
+      <StedVaelger værdi={værdi} onÆndre={setVærdi} />
+      {fejl && <p style={{ color: 'var(--red)', fontSize: 14, marginTop: 8 }}>{fejl}</p>}
+      {kvittering && <p style={{ color: 'var(--green)', fontSize: 14, marginTop: 8 }}>{kvittering}</p>}
+      <div className="actions" style={{ marginTop: 10 }}>
+        <button className="btn btn-primary" onClick={gem} disabled={gemmer}>
+          {gemmer ? 'Gemmer …' : 'Gem stedet'}
+        </button>
+      </div>
+      <p className="hint" style={{ marginTop: 8 }}>
+        Vælger kunden selv et sted under »info fra jer«, er det deres valg, der vises.
+      </p>
+    </div>
   )
 }
 
@@ -312,26 +498,62 @@ function Okonomi({ kunde }) {
   )
 }
 
-function Tidslinje({ kunde }) {
-  const p = kunde.program || []
-  if (!p.length) return <p className="lede">Programmet lægges her, så snart tiderne er faldet på plads.</p>
+function Tidslinje({ kunde, adminKode, onRettet }) {
+  const [retter, setRetter] = useState(false)
+  const p = programRækker(kunde)
+  const admin = !!adminKode
+
   return (
     <>
-      <p className="lede">
-        Sådan ser dagen ud lige nu. Skal noget flyttes, så sig til — det er nemmest inden ugen før.
-      </p>
-      <ul className="tl">
-        {p.map((x, i) => (
-          <li key={i}>
-            <span className="tl-dot" />
-            <span className="tl-time">{x.tid}</span>
-            <span className="tl-txt"><strong>{x.titel}</strong>{x.note && <span>{x.note}</span>}</span>
-          </li>
-        ))}
-      </ul>
+      {p.length ? (
+        <>
+          <p className="lede">
+            Sådan ser dagen ud lige nu. Skal noget flyttes, så sig til — det er nemmest inden ugen før.
+          </p>
+          <ul className="tl">
+            {p.map((x, i) => (
+              <li key={i} className={x.spor ? 'tl-par' : ''}>
+                <span className="tl-dot" />
+                <span className="tl-time">{x.tid}</span>
+                <span className="tl-txt">
+                  <strong>{x.titel}</strong>
+                  {x.note && <span>{x.note}</span>}
+                  {/* Samtidige spor: hver gruppe sin linje, så man kan se
+                      hvad MAN selv skal — ikke bare at der sker to ting. */}
+                  {x.spor && (
+                    <span className="tl-spor-vis">
+                      {x.spor.map((s, j) => (
+                        <span key={j}><b>{s.gruppe}</b>{s.titel}</span>
+                      ))}
+                    </span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p className="lede">
+          {admin
+            ? 'Der er ingen tidslinje endnu. Byg den herunder — har kunden købt to aktiviteter, kan du lave en rundeplan på ét tryk.'
+            : 'Programmet lægges her, så snart tiderne er faldet på plads.'}
+        </p>
+      )}
+
+      {admin && (
+        <div className="actions" style={{ marginTop: 16 }}>
+          <button className="btn btn-quiet" onClick={() => setRetter(true)}>Ret tidslinjen</button>
+        </div>
+      )}
+
+      {retter && (
+        <TidslinjeRet kunde={kunde} adminKode={adminKode} onRettet={onRettet}
+                      onLuk={() => setRetter(false)} />
+      )}
     </>
   )
 }
+
 
 /**
  * Kontakter — alle fire på ét sted, i den rækkefølge kunden får brug for dem.
@@ -454,7 +676,7 @@ function RetVoresFolk({ kunde, adminKode, onLuk, onRettet }) {
 
   useEffect(() => {
     let død = false
-    hentMedarbejdere().then(m => { if (!død) setFolk(m) }).catch(() => setFejl('Holdlisten kunne ikke hentes.'))
+    hentMedarbejdere().then(m => { if (!død) setFolk(m) }).catch(() => setFejl('Medarbejderlisten kunne ikke hentes.'))
     return () => { død = true }
   }, [])
 

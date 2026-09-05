@@ -24,7 +24,7 @@ export async function hentMedarbejdere() {
 /**
  * De to der plejer at være eventplanner, øverst i listen.
  *
- * Det er en GENVEJ, ikke en begrænsning: hele holdet står stadig nedenunder.
+ * Det er en GENVEJ, ikke en begrænsning: hele listen står stadig nedenunder.
  * `role`-kolonnen er tom på alle 23 rækker, så der er ikke andet at sortere
  * efter endnu. Bliver rollerne udfyldt i crew-systemet, skal den her liste
  * væk og erstattes af et filter på rollen.

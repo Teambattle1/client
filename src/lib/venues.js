@@ -18,7 +18,7 @@ export async function hentVenues({ alle = false } = {}) {
   if (!erKoblet) return []
   let q = supabase
     .from('locations')
-    .select('id, name, address, postal_code, city, lat, lon, contacts, venue_type, logo_url, crm_status')
+    .select('id, name, address, postal_code, city, lat, lon, contacts, venue_type, logo_url, crm_status, adgang_note')
   // Kunden ser KUN de aktive. Vi ser også dem, der er på vej — men aldrig
   // dem, der er sagt nej til; de er ikke et sted, nogen skal vælge.
   if (alle) q = q.neq('crm_status', 'rejected')
@@ -77,9 +77,20 @@ export async function hentVenue(id) {
   if (!erKoblet || !id) return null
   const { data, error } = await supabase
     .from('locations')
-    .select('id, name, address, postal_code, city, lat, lon, contacts, logo_url')
+    .select('id, name, address, postal_code, city, lat, lon, contacts, logo_url, adgang_note')
     .eq('id', id)
     .maybeSingle()
   if (error) throw new Error(error.message)
   return data || null
+}
+
+/**
+ * Stedets egen besked om ankomst — skrevet af dem, der kender stedet.
+ *
+ * Er eventet på et af VORES steder, skal kunden ikke svare på, hvordan man
+ * kommer ind: det står i venue-systemet, og dét svar er rigtigere end et,
+ * kunden gætter sig til om et sted, de også selv er gæst på.
+ */
+export function ankomstNote(venue) {
+  return String((venue && venue.adgang_note) || '').trim()
 }

@@ -57,11 +57,14 @@ export async function hentKunde(code) {
   // ikke bruges til at vise, hvordan en rettelse ser ud.
   if (code === DEMO.code) {
     const gemt = demoLæs()[DEMO.code] || {}
+    if (gemt.skjult) return null
     return { ...DEMO, ...gemt, code: DEMO.code, demo: true, info: { ...(gemt.info || {}) } }
   }
 
   if (demoTilstand) {
-    return demoLæs()[code] || null
+    const k = demoLæs()[code] || null
+    // Samme svar som databasen giver: en skjult kunde findes ikke.
+    return k && !k.skjult ? k : null
   }
   const { data, error } = await supabase.rpc('portal_client_by_code', { p_code: code })
   if (error) throw new Error(error.message)

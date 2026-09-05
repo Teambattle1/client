@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Icon from '../lib/icons'
 import { hentKunde } from '../lib/data'
-import { showtimeUrl, showtimeKlar } from '../lib/showtime'
+import { showtimesFor, synligeShowtimes } from '../lib/aktivitetsplan'
 import TemaKnap from '../components/TemaKnap'
 import { kanFuldskærm, erFuldskærm, startFuldskærm, stopFuldskærm, lytFuldskærm } from '../lib/fuldskaerm'
 
@@ -20,6 +20,8 @@ import { kanFuldskærm, erFuldskærm, startFuldskærm, stopFuldskærm, lytFuldsk
 export default function ShowtimeSide({ adminKode }) {
   const { code } = useParams()
   const navigate = useNavigate()
+  const [søgeord] = useSearchParams()
+  const ønsket = søgeord.get('akt') || ''
   const [tilstand, setTilstand] = useState('indlæser')
   const [kunde, setKunde] = useState(null)
   const [længe, setLænge] = useState(false)
@@ -36,7 +38,10 @@ export default function ShowtimeSide({ adminKode }) {
         if (død) return
         if (!k) { setTilstand('ukendt'); return }
         setKunde(k)
-        setTilstand(showtimeKlar(k) || (adminKode && showtimeUrl(k)) ? 'klar' : 'ikke-klar')
+        // Vi må gerne se et show, der ikke er tændt for kunden endnu — det
+        // er sådan man tjekker linket, FØR man tænder.
+        const kan = adminKode ? showtimesFor(k).some(x => x.url) : synligeShowtimes(k).length > 0
+        setTilstand(kan ? 'klar' : 'ikke-klar')
       })
       .catch(() => { if (!død) setTilstand('fejl') })
     return () => { død = true }
@@ -74,7 +79,13 @@ export default function ShowtimeSide({ adminKode }) {
     return () => clearTimeout(t)
   }, [tilstand])
 
-  const url = kunde ? showtimeUrl(kunde) : null
+  // Hvilket show? Adressen kan pege på én bestemt aktivitet; ellers tages
+  // det første, der har et link.
+  const muligheder = kunde
+    ? (adminKode ? showtimesFor(kunde).filter(s => s.url) : synligeShowtimes(kunde))
+    : []
+  const vist = muligheder.find(s => s.aktivitetId === ønsket) || muligheder[0] || null
+  const url = vist ? vist.url : null
   const tilbage = () => navigate(`/p/${code}`)
 
   return (
@@ -84,7 +95,7 @@ export default function ShowtimeSide({ adminKode }) {
           <Icon name="back" size={16} color="currentColor" />
           <span>Tilbage<span className="kun-bred"> til jeres side</span></span>
         </button>
-        <span className="st-bar-titel">Showtime</span>
+        <span className="st-bar-titel">{(muligheder.length > 1 && vist && vist.navn) || 'Showtime'}</span>
         {tilstand === 'klar' && kan && (
           <button className="ghost-btn" onClick={() => {
             if (fuld) stopFuldskærm(document)

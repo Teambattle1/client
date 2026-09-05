@@ -2,12 +2,16 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../lib/icons'
 import { danskDato, dageTil, initialer, portalLink } from '../lib/format'
-import { hentKunder, opretKunde, demoTilstand } from '../lib/data'
+import { hentKunder, opretKunde, opdaterKunde, demoTilstand } from '../lib/data'
 import { hentAktiviteter } from '../lib/activities'
 import { hentMedarbejdere, planlæggerGrupper, somKontakt } from '../lib/crew'
 import { DEMO } from '../lib/model'
 import TemaKnap from '../components/TemaKnap'
 import LogoVaelger from '../components/LogoVaelger'
+import KundeRaekke, { FjernKundeDialog } from '../components/KundeRaekke'
+import AktivitetsVaelger from '../components/AktivitetsVaelger'
+import StedVaelger from '../components/StedVaelger'
+import { aktivitetsFelter, standardEventNavn } from '../lib/aktivitetsplan'
 
 /* Vores egen side: find en kunde, eller opret en ny og send dem adgang. */
 
@@ -22,6 +26,10 @@ export default function Admin({ adminKode, onLogUd }) {
   const [fejl, setFejl] = useState(null)
   const [aktiviteter, setAktiviteter] = useState([])
   const [folk, setFolk] = useState([])
+  const [fjerner, setFjerner] = useState(null)   // kunden i advarslen
+  const [fjernFejl, setFjernFejl] = useState(null)
+  const [arbejder, setArbejder] = useState(false)
+  const [visSkjulte, setVisSkjulte] = useState(false)
 
   // Kataloget hentes én gang. Fejler det, står formularen tilbage med et
   // frit felt til eventnavnet — man skal kunne oprette en kunde, selv om
@@ -33,7 +41,7 @@ export default function Admin({ adminKode, onLogUd }) {
       .catch(() => { /* uden katalog: eventnavnet skrives i hånden */ })
     hentMedarbejdere()
       .then(m => { if (!død) setFolk(m) })
-      .catch(() => { /* uden holdliste: sættes på bagefter */ })
+      .catch(() => { /* uden medarbejderliste: sættes på bagefter */ })
     return () => { død = true }
   }, [])
 
@@ -43,6 +51,24 @@ export default function Admin({ adminKode, onLogUd }) {
   function åbnPreview() {
     const først = kunder.find(k => k.code) || null
     navigate('/p/' + ((først && først.code) || DEMO.code) + '?preview=1')
+  }
+
+  /**
+   * Fjern eller gendan. Begge veje er den SAMME skrivning med et mærke —
+   * intet slettes — og listen hentes ikke forfra bagefter: rækken skal
+   * forsvinde i samme øjeblik, man trykker.
+   */
+  async function sætSkjult(kunde, skjult) {
+    setArbejder(true); setFjernFejl(null)
+    try {
+      await opdaterKunde(adminKode, kunde.code, { skjult })
+      setKunder(liste => liste.map(k => k.code === kunde.code ? { ...k, skjult } : k))
+      setFjerner(null)
+    } catch (e) {
+      setFjernFejl('Kunne ikke gemme: ' + e.message)
+    } finally {
+      setArbejder(false)
+    }
   }
 
   function hent() {
@@ -57,26 +83,34 @@ export default function Admin({ adminKode, onLogUd }) {
     const f = new FormData(e.target)
     const firma = String(f.get('firma') || '').trim()
     if (!firma) return
-    const valgt = aktiviteter.find(a => a.id === String(f.get('aktivitet') || '')) || null
+    // Aktiviteterne kommer som en liste fra vælgeren; det skjulte felt bærer
+    // dem gennem formularen, så resten stadig kan læses som FormData.
+    let valgteAkt = []
+    try { valgteAkt = JSON.parse(String(f.get('aktiviteter') || '[]')) } catch { valgteAkt = [] }
+    const felter = aktivitetsFelter(valgteAkt)
     setGemmer(true)
     setFejl(null)
     try {
       const kunde = await opretKunde(adminKode, {
         firma,
-        // Aktiviteten afgør både hvad kunden ser under »hvad skal I lave«
+        // Aktiviteterne afgør både hvad kunden ser under »hvad skal I lave«
         // og hvilke spørgsmål de får — TeamTaste spørger om allergier.
-        aktivitetId: valgt ? valgt.id : '',
-        aktivitetNavn: valgt ? valgt.name : '',
+        ...felter,
         eventplanner: somKontakt(folk.find(m => m.id === String(f.get('planner') || ''))),
         leadInstruktor: somKontakt(folk.find(m => m.id === String(f.get('lead') || ''))),
         kontakt: String(f.get('kontakt') || '').trim(),
         email: String(f.get('email') || '').trim(),
         telefon: String(f.get('telefon') || '').trim(),
         logoUrl: String(f.get('logoUrl') || '').trim(),
-        eventTitle: String(f.get('event') || '').trim() || (valgt ? valgt.name : 'Event uden navn'),
+        // Skriver man ikke selv et navn, hedder eventet det, de har købt:
+        // én aktivitet hedder bare sig selv, flere bliver til en teamdag.
+        eventTitle: String(f.get('event') || '').trim() || standardEventNavn(valgteAkt) || 'Event uden navn',
         eventDate: String(f.get('dato') || ''),
         startTime: String(f.get('start') || '').trim(),
         sted: String(f.get('sted') || '').trim(),
+        venueId: String(f.get('venueId') || ''),
+        stedLat: f.get('stedLat') ? Number(f.get('stedLat')) : null,
+        stedLon: f.get('stedLon') ? Number(f.get('stedLon')) : null,
         deltagere: f.get('antal') ? Number(f.get('antal')) : null,
         pris: f.get('pris') ? Number(f.get('pris')) : null,
       })
@@ -91,7 +125,9 @@ export default function Admin({ adminKode, onLogUd }) {
   }
 
   const q = søg.toLowerCase().trim()
-  const liste = kunder.filter(k => !q ||
+  const synlige = kunder.filter(k => visSkjulte || !k.skjult)
+  const antalSkjulte = kunder.filter(k => k.skjult).length
+  const liste = synlige.filter(k => !q ||
     `${k.firma || ''} ${k.kontakt || ''} ${k.eventTitle || ''} ${k.code}`.toLowerCase().includes(q))
 
   return (
@@ -128,7 +164,15 @@ export default function Admin({ adminKode, onLogUd }) {
         {opretter && <OpretForm onSubmit={gem} gemmer={gemmer} fejl={fejl} aktiviteter={aktiviteter} folk={folk} />}
         {nyKunde && <Kvittering kunde={nyKunde} onLuk={() => setNyKunde(null)} onÅbn={() => navigate('/p/' + nyKunde.code)} />}
 
-        {tilstand === 'indlæser' && <div className="empty"><h3>Henter kunder …</h3></div>}
+        {fjerner && (
+          <FjernKundeDialog
+            kunde={fjerner} arbejder={arbejder} fejl={fjernFejl}
+            onFjern={() => sætSkjult(fjerner, true)}
+            onLuk={() => { setFjerner(null); setFjernFejl(null) }}
+          />
+        )}
+
+        {!opretter && tilstand === 'indlæser' && <div className="empty"><h3>Henter kunder …</h3></div>}
 
         {tilstand === 'fejl' && (
           <div className="empty">
@@ -140,7 +184,11 @@ export default function Admin({ adminKode, onLogUd }) {
           </div>
         )}
 
-        {tilstand === 'klar' && kunder.length === 0 && (
+        {/* Mens man opretter, er listen væk. Den hører til »find en kunde«,
+            ikke til »lav en ny«, og på en telefon endte den lige under
+            formularen, hvor den lignede noget, der hørte med til det, man
+            var i gang med at udfylde. */}
+        {!opretter && tilstand === 'klar' && kunder.length === 0 && (
           <>
             <div className="empty">
               <h3>Ingen kunder endnu</h3>
@@ -163,7 +211,7 @@ export default function Admin({ adminKode, onLogUd }) {
           </>
         )}
 
-        {tilstand === 'klar' && kunder.length > 0 && (
+        {!opretter && tilstand === 'klar' && kunder.length > 0 && (
           <>
             <div className="search">
               <Icon name="search" size={18} color="currentColor" />
@@ -172,26 +220,29 @@ export default function Admin({ adminKode, onLogUd }) {
             </div>
             {liste.length ? (
               <div className="clist">
-                {liste.map(k => {
-                  const d = dageTil(k.eventDate)
-                  return (
-                    <button className="crow" key={k.code} onClick={() => navigate('/p/' + k.code)}>
-                      <span className="crow-mark">{initialer(k.firma)}</span>
-                      <span className="crow-main">
-                        <b>{k.firma || 'Uden navn'}</b>
-                        <span>{k.eventTitle || 'Event ikke navngivet'} · {danskDato(k.eventDate)}</span>
-                      </span>
-                      <span className="crow-side">
-                        <span className="code">{k.code}</span>
-                        <span>{d !== null && d >= 0 ? `om ${d} dage` : 'afholdt'}</span>
-                      </span>
-                    </button>
-                  )
-                })}
+                {liste.map(k => (
+                  <KundeRaekke
+                    key={k.code} kunde={k}
+                    onÅbn={x => navigate('/p/' + x.code)}
+                    onFjern={x => { setFjernFejl(null); setFjerner(x) }}
+                    onGendan={x => sætSkjult(x, false)}
+                  />
+                ))}
               </div>
             ) : (
               <div className="empty"><h3>Ingen træffere</h3><p>Prøv et andet ord, eller opret kunden.</p></div>
             )}
+
+            {/* Gestussen skal ANNONCERES. En tooltip kan ikke ses på en
+                telefon, og en usynlig genvej er ingen genvej. */}
+            <div className="liste-fod">
+              <span>Hold på en kunde for at fjerne den fra listen.</span>
+              {antalSkjulte > 0 && (
+                <button className="ghost-btn" onClick={() => setVisSkjulte(v => !v)}>
+                  {visSkjulte ? 'Skjul de fjernede' : `Vis ${antalSkjulte} fjernede`}
+                </button>
+              )}
+            </div>
           </>
         )}
       </div>
@@ -205,18 +256,18 @@ function OpretForm({ onSubmit, gemmer, fejl, aktiviteter, folk }) {
   // Resten af formularen læses stadig som FormData ved indsendelse.
   const [firma, setFirma] = useState('')
   const [logo, setLogo] = useState('')
+  const [valgtAkt, setValgtAkt] = useState([])
+  const [sted, setSted] = useState({ sted: '', venueId: '', lat: null, lon: null })
   return (
     <form className="block" style={{ padding: 18 }} onSubmit={onSubmit}>
       <h3 style={{ fontSize: 18, marginBottom: 14 }}>Ny kunde</h3>
       <div className="field">
-        <label htmlFor="n-aktivitet">Hvad har de købt?</label>
-        <select id="n-aktivitet" name="aktivitet" defaultValue="">
-          <option value="">Vælg aktivitet …</option>
-          {aktiviteter.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-        </select>
+        <label htmlFor="n-aktivitet">Vælg aktivitet</label>
+        <AktivitetsVaelger id="n-aktivitet" aktiviteter={aktiviteter} valgte={valgtAkt} onÆndre={setValgtAkt} />
+        <input type="hidden" name="aktiviteter" value={JSON.stringify(valgtAkt)} />
         <p className="hint">
           {aktiviteter.length
-            ? 'Kunden ser aktiviteten under »hvad skal I lave«. Ved TeamTaste spørger vi også om allergier.'
+            ? 'Har de købt to ting, så vælg dem begge — så kan tidslinjen køre dem samtidig i to grupper, og der bliver et showtime til hver.'
             : 'Aktivitetslisten kunne ikke hentes — skriv eventets navn i feltet nedenfor i stedet.'}
         </p>
       </div>
@@ -226,7 +277,8 @@ function OpretForm({ onSubmit, gemmer, fejl, aktiviteter, folk }) {
         <Felt navn="kontakt" label="Kontaktperson" ph="Mette Hylleborg" />
         <Felt navn="email" label="E-mail" type="email" ph="mh@firma.dk" />
         <Felt navn="telefon" label="Telefon" ph="27 41 88 05" />
-        <Felt navn="event" label="Event-navn (valgfrit)" ph="Byjagt i Aarhus" />
+        <Felt navn="event" label="Event-navn (valgfrit)"
+              ph={standardEventNavn(valgtAkt) || 'Byjagt i Aarhus'} />
         <Felt navn="dato" label="Dato" type="date" />
         <Felt navn="start" label="Starttid" ph="13.00" />
         <Felt navn="antal" label="Antal deltagere" ph="48" />
@@ -254,7 +306,14 @@ function OpretForm({ onSubmit, gemmer, fejl, aktiviteter, folk }) {
           </select>
         </div>
       </div>
-      <Felt navn="sted" label="Sted" ph="Dokk1, Hack Kampmanns Plads 2, 8000 Aarhus C" />
+      <div className="field">
+        <label htmlFor="n-sted">Sted</label>
+        <StedVaelger værdi={sted} onÆndre={setSted} />
+        <input type="hidden" name="sted" value={sted.sted || ''} />
+        <input type="hidden" name="venueId" value={sted.venueId || ''} />
+        <input type="hidden" name="stedLat" value={sted.lat ?? ''} />
+        <input type="hidden" name="stedLon" value={sted.lon ?? ''} />
+      </div>
       <Felt navn="pris" label="Pris ekskl. moms" ph="23400" />
 
       <div className="field">

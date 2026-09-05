@@ -95,3 +95,20 @@
      afsnittene, og nålen viser hvor man skal hen. */
   .print-side{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
+
+/* Samtidige spor: hver gruppe sin linje, så receptionisten kan se hvem der
+   skal hvorhen — ikke bare at der sker to ting på én gang. */
+.p-tid .p-spor{display:block;color:var(--p-blæk);font-size:9pt;margin-top:.6mm}
+.p-tid .p-spor b{display:inline;font-weight:700;font-size:7.5pt;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--p-orange)}
+
+/* Inde eller ude — eget afsnit, fordi det er dét, folk læser inden de
+   pakker tasken. Mærket er en ramme, ikke en farveflade: sedlen printes
+   tit i sort/hvid. */
+.p-forhold{margin-bottom:1.8mm;break-inside:avoid}
+.p-forhold:last-child{margin-bottom:0}
+.p-forhold b{font-weight:600}
+.p-forhold-mærke{display:inline-block;margin-left:2mm;padding:.3mm 1.6mm;border-radius:1mm;
+  border:1px solid var(--p-orange);color:var(--p-orange);
+  font-size:7.5pt;font-weight:700;letter-spacing:.04em;text-transform:uppercase;vertical-align:.4mm}
+.p-forhold-note{display:block;font-size:9pt;color:var(--p-dæmp);margin-top:.4mm}

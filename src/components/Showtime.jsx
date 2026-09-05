@@ -2,10 +2,16 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../lib/icons'
 import { opdaterKunde } from '../lib/data'
-import { rensShowtimeUrl, erVoresLink, showtimeUrl, showtimeKlar } from '../lib/showtime'
+import { rensShowtimeUrl, erVoresLink } from '../lib/showtime'
+import { showtimesFor, synligeShowtimes, showtimeFelter } from '../lib/aktivitetsplan'
 
 /**
  * »Showtime« — billederne og resultatlisten fra dagen.
+ *
+ * ET SHOW PR. AKTIVITET. Har kunden købt to ting, ligger billederne to
+ * steder — det er to forskellige apps, der har afviklet dem — og de skal
+ * kunne tændes hver for sig: den ene er ofte klar dagen efter, den anden
+ * først når nogen har set videoklippene igennem.
  *
  * Kunden møder ÉT valg, ikke en side: se det, eller del det. Delingen er
  * skilt ud som sit eget skridt, fordi det er dér der sker noget uigenkalde-
@@ -15,31 +21,38 @@ import { rensShowtimeUrl, erVoresLink, showtimeUrl, showtimeKlar } from '../lib/
  */
 export default function Showtime({ kunde, adminKode, onRettet, onLuk }) {
   const navigate = useNavigate()
-  const [visDel, setVisDel] = useState(false)
-  const url = showtimeUrl(kunde)
-  const klar = showtimeKlar(kunde)
+  const [delId, setDelId] = useState(null)     // showet vi deler lige nu
+  const synlige = synligeShowtimes(kunde)
   const admin = !!adminKode
+
+  const deles = synlige.find(s => s.aktivitetId === delId) || null
 
   return (
     <>
-      {klar ? (
-        visDel
-          ? <Del url={url} onTilbage={() => setVisDel(false)} />
-          : (
-            <>
-              <p className="lede">
-                Billederne og resultaterne fra jeres dag ligger klar. Se dem her,
-                eller del linket med dem der var med.
-              </p>
+      {deles ? (
+        <Del show={deles} flere={synlige.length > 1} onTilbage={() => setDelId(null)} />
+      ) : synlige.length ? (
+        <>
+          <p className="lede">
+            {synlige.length > 1
+              ? 'Der er et show for hver aktivitet. Se dem her, eller del linket med dem der var med.'
+              : 'Billederne og resultaterne fra jeres dag ligger klar. Se dem her, eller del linket med dem der var med.'}
+          </p>
+          {synlige.map(s => (
+            <div className="st-gruppe" key={s.aktivitetId || s.url}>
+              {synlige.length > 1 && <div className="st-gruppe-navn">{s.navn}</div>}
               <div className="st-valg">
-                <button className="st-kort" onClick={() => { onLuk?.(); navigate(`/p/${kunde.code}/showtime`) }}>
+                <button className="st-kort" onClick={() => {
+                  onLuk?.()
+                  navigate(`/p/${kunde.code}/showtime` + (s.aktivitetId ? `?akt=${encodeURIComponent(s.aktivitetId)}` : ''))
+                }}>
                   <span className="st-kort-ikon"><Icon name="showtime" size={30} /></span>
                   <span className="st-kort-tekst">
                     <b>Se showtime</b>
                     <span>Åbner her på siden — I kan gå tilbage når som helst</span>
                   </span>
                 </button>
-                <button className="st-kort" onClick={() => setVisDel(true)}>
+                <button className="st-kort" onClick={() => setDelId(s.aktivitetId)}>
                   <span className="st-kort-ikon"><Icon name="copy" size={26} /></span>
                   <span className="st-kort-tekst">
                     <b>Del showtime</b>
@@ -47,12 +60,13 @@ export default function Showtime({ kunde, adminKode, onRettet, onLuk }) {
                   </span>
                 </button>
               </div>
-            </>
-          )
+            </div>
+          ))}
+        </>
       ) : (
         <p className="lede">
           {admin
-            ? 'Kunden kan ikke se showtime endnu. Sæt linket herunder, og tænd for det når showet er klar.'
+            ? 'Kunden kan ikke se showtime endnu. Sæt et link herunder, og tænd for det når showet er klar.'
             : 'Showtime er ikke klar endnu. Vi lægger billeder og resultater ind kort efter jeres event.'}
         </p>
       )}
@@ -73,9 +87,10 @@ export default function Showtime({ kunde, adminKode, onRettet, onLuk }) {
    Vi skriver ikke jura for dem. Vi minder om, at det er DERES politik der
    gælder, når det er deres medarbejdere på billederne.
 ----------------------------------------------------------------*/
-function Del({ url, onTilbage }) {
+function Del({ show, flere, onTilbage }) {
   const [forstået, setForstået] = useState(false)
   const [kopieret, setKopieret] = useState(false)
+  const url = show.url
 
   async function kopiér() {
     try {
@@ -96,6 +111,7 @@ function Del({ url, onTilbage }) {
 
   return (
     <>
+      {flere && <div className="st-gruppe-navn" style={{ marginBottom: 10 }}>{show.navn}</div>}
       <div className="gdpr">
         <div className="gdpr-top">
           <span className="gdpr-ikon"><Icon name="users" size={18} /></span>
@@ -155,7 +171,7 @@ const APPS = [
 ]
 
 /* ---------------------------------------------------------------
-   Adminpanelet — kun for os.
+   Adminpanelet — kun for os. Ét felt pr. aktivitet.
 
    To knapper der IKKE er den samme: »Gem« sætter linket, og kontakten
    nedenunder tænder for kundens adgang. Billederne er ofte klar før nogen
@@ -163,51 +179,12 @@ const APPS = [
    bliver sat, er præcis dét vi ikke vil have.
 ----------------------------------------------------------------*/
 function AdminPanel({ kunde, adminKode, onRettet }) {
-  const [tekst, setTekst] = useState(kunde.showtimeUrl || '')
-  const [gemmer, setGemmer] = useState(false)
-  const [fejl, setFejl] = useState(null)
-  const [kvittering, setKvittering] = useState(null)
-
-  const gemt = showtimeUrl(kunde)
-  const aktiv = !!kunde.showtimeAktiv
-
-  async function skriv(patch, besked) {
-    setGemmer(true); setFejl(null); setKvittering(null)
-    try {
-      const ny = await opdaterKunde(adminKode, kunde.code, patch)
-      onRettet?.(ny)
-      setKvittering(besked)
-      setTimeout(() => setKvittering(null), 2600)
-    } catch (e) {
-      setFejl('Kunne ikke gemme: ' + e.message)
-    } finally {
-      setGemmer(false)
-    }
-  }
-
-  function gem() {
-    const ren = rensShowtimeUrl(tekst)
-    if (!ren) {
-      setFejl('Det ser ikke ud som et link. Indsæt hele adressen — fx play.eventday.dk/showtime/abc123')
-      return
-    }
-    setTekst(ren)
-    skriv({ showtimeUrl: ren }, 'Linket er gemt')
-  }
-
-  function slet() {
-    setTekst('')
-    // Slukker OGSÅ for kunden: et tændt showtime uden link ville give en
-    // knap, der åbner en tom skærm.
-    skriv({ showtimeUrl: '', showtimeAktiv: false }, 'Linket er slettet')
-  }
-
-  const ren = rensShowtimeUrl(tekst)
-  const fremmed = ren && !erVoresLink(ren)
+  const shows = showtimesFor(kunde)
 
   return (
     <div className="block" style={{ marginTop: 18 }}>
       <h3>Showtime-link (kun os)</h3>
+
       {/* Vejen HEN til linket. Man står her med kundens side åben og skal
           bruge et link, der ligger inde i den app, eventet blev afviklet i —
           så knapperne åbner appen i et nyt vindue, og portalen bliver stående
@@ -226,10 +203,64 @@ function AdminPanel({ kunde, adminKode, onRettet }) {
         Åbn appen, find showtime på spillet, kopiér linket — og sæt det ind herunder.
       </p>
 
+      {shows.length
+        ? shows.map(s => (
+            <EtShow key={s.aktivitetId || s.navn} show={s} flere={shows.length > 1}
+                    kunde={kunde} adminKode={adminKode} onRettet={onRettet} />
+          ))
+        : <p className="hint">Vælg en aktivitet på kunden først — showtime hører til en aktivitet.</p>}
+    </div>
+  )
+}
+
+function EtShow({ show, flere, kunde, adminKode, onRettet }) {
+  const [tekst, setTekst] = useState(show.url || '')
+  const [gemmer, setGemmer] = useState(false)
+  const [fejl, setFejl] = useState(null)
+  const [kvittering, setKvittering] = useState(null)
+
+  async function skriv(patch, besked) {
+    setGemmer(true); setFejl(null); setKvittering(null)
+    try {
+      const ny = await opdaterKunde(adminKode, kunde.code, showtimeFelter(kunde, show.aktivitetId, patch))
+      onRettet?.(ny)
+      setKvittering(besked)
+      setTimeout(() => setKvittering(null), 2600)
+    } catch (e) {
+      setFejl('Kunne ikke gemme: ' + e.message)
+    } finally {
+      setGemmer(false)
+    }
+  }
+
+  function gem() {
+    const ren = rensShowtimeUrl(tekst)
+    if (!ren) {
+      setFejl('Det ser ikke ud som et link. Indsæt hele adressen — fx play.eventday.dk/showtime/abc123')
+      return
+    }
+    setTekst(ren)
+    skriv({ url: ren }, 'Linket er gemt')
+  }
+
+  function slet() {
+    setTekst('')
+    // Slukker OGSÅ for kunden: et tændt showtime uden link ville give en
+    // knap, der åbner en tom skærm.
+    skriv({ url: '', aktiv: false }, 'Linket er slettet')
+  }
+
+  const ren = rensShowtimeUrl(tekst)
+  const fremmed = ren && !erVoresLink(ren)
+  const felt = 'st-url-' + (show.aktivitetId || 'ene')
+
+  return (
+    <div className={flere ? 'st-show' : ''}>
+      {flere && <div className="st-gruppe-navn">{show.navn}</div>}
       <div className="field" style={{ marginBottom: 10 }}>
-        <label htmlFor="st-url">Link til showtime</label>
+        <label htmlFor={felt}>Link til showtime</label>
         <input
-          id="st-url" type="url" inputMode="url" autoComplete="off"
+          id={felt} type="url" inputMode="url" autoComplete="off"
           value={tekst} onChange={e => { setTekst(e.target.value); setFejl(null) }}
           placeholder="play.eventday.dk/showtime/…"
         />
@@ -250,27 +281,28 @@ function AdminPanel({ kunde, adminKode, onRettet }) {
 
       <div className="actions">
         <button className="btn btn-primary" onClick={gem} disabled={gemmer || !tekst.trim()}>
-          {gemmer ? 'Gemmer …' : gemt ? 'Gem ændring' : 'Gem link'}
+          {gemmer ? 'Gemmer …' : show.url ? 'Gem ændring' : 'Gem link'}
         </button>
-        {gemt && (
+        {show.url && (
           <button className="btn btn-quiet" onClick={slet} disabled={gemmer}>Slet link</button>
         )}
       </div>
 
       <div className="st-tænd">
         <div>
-          <b>Vis showtime for kunden</b>
+          <b>Vis for kunden</b>
           <span>
-            {gemt
-              ? (aktiv ? 'Knappen står på kundens side nu.' : 'Kunden kan ikke se knappen endnu.')
+            {show.url
+              ? (show.aktiv ? 'Showet står på kundens side nu.' : 'Kunden kan ikke se det endnu.')
               : 'Sæt et link først.'}
           </span>
         </div>
         <button
-          type="button" role="switch" aria-checked={aktiv} aria-label="Vis showtime for kunden"
-          className={'kontakt-knap' + (aktiv ? ' på' : '')}
-          disabled={!gemt || gemmer}
-          onClick={() => skriv({ showtimeAktiv: !aktiv }, !aktiv ? 'Kunden kan se showtime nu' : 'Skjult for kunden igen')}
+          type="button" role="switch" aria-checked={show.aktiv}
+          aria-label={'Vis ' + show.navn + ' for kunden'}
+          className={'kontakt-knap' + (show.aktiv ? ' på' : '')}
+          disabled={!show.url || gemmer}
+          onClick={() => skriv({ aktiv: !show.aktiv }, !show.aktiv ? 'Kunden kan se showet nu' : 'Skjult for kunden igen')}
         >
           <span />
         </button>

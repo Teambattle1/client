@@ -2,6 +2,7 @@
 // eksempelkunden. Alt tekst er dansk — portalen er kundevendt.
 
 import { showtimeKlar } from './showtime'
+import { aktiviteterFor } from './aktivitetsplan'
 
 export const SECTIONS = [
   { key: 'opgave',    label: 'Hvad skal I lave', icon: 'flag',   sub: 'Aktiviteten I har bestilt' },
@@ -39,23 +40,35 @@ export function sektionerFor(kunde, admin) {
  * afgøres uden at vente på et opslag.
  */
 export function produktFor(kunde) {
-  const navn = String((kunde && kunde.aktivitetNavn) || '').toLowerCase()
-  return navn.includes('teamtaste') ? 'taste' : 'track'
+  // ALLE aktiviteter tæller: har kunden købt en byjagt OG en madaften, skal
+  // vi stadig spørge om allergier. Ét spørgsmål for meget er til at leve
+  // med; en madaften uden allergier er ikke.
+  const navne = aktiviteterFor(kunde).map(a => a.navn).join(' ').toLowerCase()
+  return navne.includes('teamtaste') ? 'taste' : 'track'
 }
 
 const INFO_FIELDS = [
   { key: 'deltagere', label: 'Endeligt antal deltagere', type: 'text', ph: 'fx 48',
     hint: 'Vi låser tallet 5 dage før — små ændringer klarer vi på dagen.' },
-  { key: 'hold', label: 'Holdinddeling', type: 'select',
-    options: ['Vi vælger selv holdene', 'I må gerne inddele os', 'Vi blander på dagen'],
-    hint: 'Vælger I selv, sender vi en holdliste I kan udfylde.' },
+  // TO valg, ikke tre. Det tredje (»I må gerne inddele os«) var i praksis
+  // det samme som det andet, og et valg, man skal tænke over, er ét valg
+  // for meget på en formular, folk udfylder på en telefon.
+  { key: 'hold', label: 'Teaminddeling', kort: 'Teams', type: 'select',
+    options: ['Vi blander selv teams', 'TeamBattle blander på dagen'],
+    hint: 'Et team er altid 4 personer, hvis ikke andet er aftalt. Blander I selv, sender vi en teamliste, I kan udfylde.' },
   // Stedet er ét spørgsmål, ikke fem: enten et af vores steder, eller jeres
   // eget — og vælger I jeres eget, skal vi vide hvordan vi kommer ind.
   { key: 'sted', label: 'Hvor skal det foregå?', type: 'venue' },
-  { key: 'logistik', label: 'Særlige logistiske forhold', type: 'textarea',
+  // KUN når det er kundens eget sted. Er eventet på et af vores venues,
+  // står forholdene i venue-systemet — og dét svar er rigtigere end et,
+  // kunden gætter sig til om et sted, de også selv er gæst på.
+  { key: 'logistik', label: 'Særlige forhold ved ankomst til location?', type: 'textarea',
+    // Kort form til printarket: dér er der to smalle spalter, og et langt
+    // spørgsmål presser svaret ned i en ny linje — og arket over én side.
+    kort: 'Særlige forhold', kunEgetSted: true,
     ph: 'Fx varer der skal køres ind, en elevator der er i stykker, en trappe uden gelænder, larm fra et andet møde',
     hint: 'Alt hvad der er værd at vide, før vi står der med udstyret.' },
-  { key: 'ankomst', label: 'Hvornår er I fremme?', type: 'text', ph: 'fx 12.45',
+  { key: 'ankomst', label: 'Hvornår er I fremme?', kort: 'I er fremme', type: 'text', ph: 'fx 12.45',
     hint: 'Vi står klar 45 minutter før jeres starttid.' },
   // To kontakter, fordi det sjældent er den samme person: den ene planlægger
   // eventet med os i ugerne før, den anden står der på dagen.
@@ -83,7 +96,13 @@ const INFO_FIELDS = [
  */
 export function infoFieldsFor(kunde) {
   const produkt = produktFor(kunde)
-  return INFO_FIELDS.filter(f => !f.produkt || f.produkt === produkt)
+  const k = kunde || {}
+  // Er stedet et af VORES venues — sat af os eller valgt af kunden dengang
+  // de kunne — så kommer ankomstforholdene derfra.
+  const påVoresVenue = !!(k.venueId || (k.info && k.info.sted && k.info.sted.venueId))
+  return INFO_FIELDS
+    .filter(f => !f.produkt || f.produkt === produkt)
+    .filter(f => !f.kunEgetSted || !påVoresVenue)
 }
 
 /** Hvor mange af kundens felter der er udfyldt. Driver både fremdriftslinjen
@@ -97,12 +116,15 @@ export function infoFieldsFor(kunde) {
  * altså ville et TOMT felt tælle som udfyldt, og kunden ville se 100 % uden
  * at have svaret på noget.
  */
-export function feltUdfyldt(felt, værdi) {
+export function feltUdfyldt(felt, værdi, kunde) {
   if (felt.type === 'venue') {
     const v = værdi || {}
     if (v.valg === 'vores') return !!v.venueId
     if (v.valg === 'egen') return !!(v.adresse && String(v.adresse).trim())
-    return false
+    // HAR VI SELV SAT STEDET, er spørgsmålet besvaret. Kunden skal ikke
+    // udfylde noget, vi allerede ved — og de skal slet ikke se et
+    // »mangler«-mærke for det.
+    return !!(kunde && String(kunde.sted || '').trim())
   }
   if (felt.type === 'kontakt') {
     const k = værdi || {}
@@ -114,7 +136,7 @@ export function feltUdfyldt(felt, værdi) {
 
 export function infoUdfyldt(kunde) {
   const info = (kunde && kunde.info) || {}
-  return infoFieldsFor(kunde).filter(f => feltUdfyldt(f, info[f.key])).length
+  return infoFieldsFor(kunde).filter(f => feltUdfyldt(f, info[f.key], kunde)).length
 }
 
 /** Eksempelkunden. Findes så portalen kan ses og vurderes uden at der er
@@ -129,16 +151,16 @@ export const DEMO = {
   modested: 'Trappen foran hovedindgangen',
   parkering: 'Salling P-hus, 4 min. gang',
   deltagere: 48, pris: 23400, betalt: false, faktura: 'EAN 5798009812345',
-  beskrivelse: 'Et hold-mod-hold løb gennem Aarhus midtby. I får hver en tablet, en rute og 22 opgaver undervejs — fotoopgaver, gåder og små udfordringer, der kræver at I taler sammen. Der er ingen fysiske krav ud over almindelig gang.',
-  inkluderet: ['22 opgaver', 'Tablets til alle hold', 'Gamemaster på ruten', 'Resultatshow til sidst', 'Billeder dagen efter'],
+  beskrivelse: 'Et team-mod-team løb gennem Aarhus midtby. I får hver en tablet, en rute og 22 opgaver undervejs — fotoopgaver, gåder og små udfordringer, der kræver at I taler sammen. Der er ingen fysiske krav ud over almindelig gang.',
+  inkluderet: ['22 opgaver', 'Tablets til alle teams', 'Gamemaster på ruten', 'Resultatshow til sidst', 'Billeder dagen efter'],
   gamemaster: { navn: 'Kasper Lund', rolle: 'Gamemaster på jeres event', telefon: '40 27 40 27', email: 'kasper@eventday.dk' },
   eventplanner: { navn: 'Maria Lund', mail: 'maria@eventday.dk', tlf: '28 55 12 04' },
   leadInstruktor: { navn: 'Kasper Lund', mail: 'kasper@eventday.dk', tlf: '40 27 40 27' },
   program: [
     { tid: '12.15', titel: 'Vi rigger op', note: 'I skal ikke være der endnu' },
-    { tid: '13.00', titel: 'Velkomst og holdinddeling', note: 'Ved trappen foran Dokk1' },
-    { tid: '13.20', titel: 'Byjagten går i gang', note: 'Holdene sendes af sted med hver sin startopgave' },
-    { tid: '15.45', titel: 'Alle hold tilbage', note: 'Sidste opgave lukker præcis 15.45' },
+    { tid: '13.00', titel: 'Velkomst og teaminddeling', note: 'Ved trappen foran Dokk1' },
+    { tid: '13.20', titel: 'Byjagten går i gang', note: 'Teamene sendes af sted med hver sin startopgave' },
+    { tid: '15.45', titel: 'Alle teams tilbage', note: 'Sidste opgave lukker præcis 15.45' },
     { tid: '16.00', titel: 'Resultatshow og præmie', note: 'Ca. 20 minutter' },
     { tid: '16.30', titel: 'Tak for i dag', note: '' },
   ],
@@ -150,7 +172,7 @@ export const DEMO = {
 export function tomKunde(felter) {
   return {
     firma: '', kontakt: '', email: '', telefon: '', logoUrl: '',
-    aktivitetId: '', aktivitetNavn: '',
+    aktivitetId: '', aktivitetNavn: '', aktiviteter: [], showtimes: [], grupper: [],
     eventplanner: null, leadInstruktor: null,
     eventTitle: '', eventDate: '', startTime: '', endTime: '',
     sted: '', modested: '', parkering: '',
