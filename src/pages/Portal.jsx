@@ -1,16 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Icon from '../lib/icons'
-import { SECTIONS, infoFieldsFor, infoUdfyldt } from '../lib/model'
+import { sektionerFor, infoFieldsFor, infoUdfyldt } from '../lib/model'
 import { danskDato, dageTil, kr } from '../lib/format'
-import { hentKunde, gemInfo } from '../lib/data'
+import { hentKunde, gemInfo, opdaterKunde } from '../lib/data'
+import { showtimeStatus } from '../lib/showtime'
 import PortalSheet from '../components/PortalSheet'
+import TemaKnap from '../components/TemaKnap'
+import LogoVaelger from '../components/LogoVaelger'
 
 /* Kundens egen side. Åbnes med /p/<seks cifre>. */
 
 export default function Portal({ adminKode }) {
   const { code } = useParams()
   const navigate = useNavigate()
+  const [søgeord] = useSearchParams()
+
+  /* Preview: vi kigger med kundens øjne. Vores egne knapper — showtime-linket,
+     »ret vores folk«, logo-skift — skal VÆK, ikke bare være uden virkning:
+     man kan ikke godkende en side, hvis man ser en anden side end kunden. */
+  const preview = søgeord.get('preview') === '1'
+  const somAdmin = !!adminKode && !preview
 
   const [tilstand, setTilstand] = useState('indlæser') // indlæser | klar | ukendt | fejl
   const [kunde, setKunde] = useState(null)
@@ -69,20 +79,32 @@ export default function Portal({ adminKode }) {
 
   return (
     <div className="page">
+      {preview && (
+        <div className="preview-bar">
+          <span><b>Preview</b> · sådan ser kunden siden</span>
+          <button className="ghost-btn" onClick={() => navigate(`/p/${code}`)}>Afslut preview</button>
+        </div>
+      )}
       <div className="wrap">
         <div className="brand">
           <span className="brand-mark"><Icon name="flag" size={15} /></span>
           <span className="brand-name">EventDay</span>
           <span className="brand-spacer" />
+          <TemaKnap />
           <button className="ghost-btn" onClick={() => navigate(`/p/${code}/print`)}>Print</button>
-          {adminKode && (
-            <button className="ghost-btn" onClick={() => navigate('/admin')}>← Alle kunder</button>
+          {somAdmin && (
+            <>
+              <button className="ghost-btn" onClick={() => navigate(`/p/${code}?preview=1`)}>Preview</button>
+              <button className="ghost-btn" onClick={() => navigate('/admin')}>← Alle kunder</button>
+            </>
           )}
         </div>
 
         <div className="hero">
           <div className="hero-top">
             <div>
+              <KundeLogo kunde={kunde} adminKode={somAdmin ? adminKode : ''}
+                         onRettet={k => setKunde(k)} />
               <div className="eyebrow" style={{ marginBottom: 7 }}>Jeres event</div>
               <h1>{kunde.eventTitle || 'Jeres event'}</h1>
               <div className="hero-firma">
@@ -122,7 +144,7 @@ export default function Portal({ adminKode }) {
         </div>
 
         <div className="grid">
-          {SECTIONS.map(s => (
+          {sektionerFor(kunde, somAdmin).map(s => (
             <button className="tile" key={s.key} onClick={() => setSektion(s.key)}>
               {s.key === 'info' && (udfyldt < felter.length
                 ? <span className="tile-dot">Mangler</span>
@@ -130,7 +152,7 @@ export default function Portal({ adminKode }) {
               <span className="tile-icon"><Icon name={s.icon} size={46} /></span>
               <span className="tile-body">
                 <span className="tile-label">{s.label}</span>
-                <span className="tile-status">{status(s.key, kunde, udfyldt, felter.length)}</span>
+                <span className="tile-status">{status(s.key, kunde, udfyldt, felter.length, somAdmin)}</span>
               </span>
             </button>
           ))}
@@ -148,14 +170,86 @@ export default function Portal({ adminKode }) {
         <PortalSheet
           sektion={sektion} kunde={kunde} info={info}
           gemStatus={gemStatus} onInfo={ændreInfo} onLuk={() => setSektion(null)}
-          adminKode={adminKode} onKundeRettet={k => setKunde(k)}
+          adminKode={somAdmin ? adminKode : ''} onKundeRettet={k => setKunde(k)}
         />
       )}
     </div>
   )
 }
 
-function status(key, kunde, udfyldt, antal) {
+/**
+ * Kundens eget mærke øverst på deres side.
+ *
+ * Er der ikke noget logo, står der INTET hos kunden — en tom firkant med et
+ * ødelagt billede er værre end ingenting. Vi ser derimod en stiplet plads,
+ * så det er tydeligt, at der mangler et logo, netop dér hvor man opdager det.
+ */
+function KundeLogo({ kunde, adminKode, onRettet }) {
+  const [åben, setÅben] = useState(false)
+  const [valgt, setValgt] = useState(kunde.logoUrl || '')
+  const [gemmer, setGemmer] = useState(false)
+  const [fejl, setFejl] = useState(null)
+  const [dødt, setDødt] = useState(false)
+  const admin = !!adminKode
+  const logo = kunde.logoUrl && !dødt ? kunde.logoUrl : ''
+
+  if (!logo && !admin) return null
+
+  async function gem() {
+    setGemmer(true); setFejl(null)
+    try {
+      onRettet?.(await opdaterKunde(adminKode, kunde.code, { logoUrl: valgt }))
+      setDødt(false)
+      setÅben(false)
+    } catch (e) {
+      setFejl('Kunne ikke gemme: ' + e.message)
+    } finally {
+      setGemmer(false)
+    }
+  }
+
+  return (
+    <div className="hero-logo">
+      {logo
+        ? <span className="logo-plade"><img src={logo} alt={kunde.firma || ''} onError={() => setDødt(true)} /></span>
+        : <span className="logo-plade tom" aria-hidden="true"><Icon name="plus" size={18} color="currentColor" /></span>}
+      {admin && (
+        <button className="ghost-btn" onClick={() => { setValgt(kunde.logoUrl || ''); setÅben(true) }}>
+          {logo ? 'Skift logo' : 'Tilføj logo'}
+        </button>
+      )}
+
+      {åben && (
+        <div className="sheet-back" onClick={e => { if (e.target === e.currentTarget) setÅben(false) }}>
+          <div className="sheet" style={{ maxWidth: 460 }} role="dialog" aria-modal="true" aria-label="Kundens logo">
+            <div className="sheet-head">
+              <span className="tile-icon"><Icon name="form" size={20} /></span>
+              <div className="sheet-title">
+                <h2>Kundens logo</h2>
+                <span>{kunde.firma}</span>
+              </div>
+              <button className="x-btn" onClick={() => setÅben(false)} aria-label="Luk">
+                <Icon name="close" size={18} color="currentColor" />
+              </button>
+            </div>
+            <div className="sheet-body">
+              <LogoVaelger firma={kunde.firma} værdi={valgt} onÆndre={setValgt} kode={kunde.code} />
+              {fejl && <p style={{ color: 'var(--red)', fontSize: 14, marginTop: 8 }}>{fejl}</p>}
+              <div className="actions" style={{ marginTop: 14 }}>
+                <button className="btn btn-primary" onClick={gem} disabled={gemmer}>
+                  {gemmer ? 'Gemmer …' : 'Gem'}
+                </button>
+                <button className="btn btn-quiet" onClick={() => setÅben(false)}>Fortryd</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function status(key, kunde, udfyldt, antal, admin) {
   if (key === 'opgave') return kunde.eventTitle || 'Jeres event'
   if (key === 'info') return `${udfyldt} af ${antal} udfyldt`
   if (key === 'location') return (kunde.sted || 'Ikke sat').split(',')[0]
@@ -166,12 +260,14 @@ function status(key, kunde, udfyldt, antal) {
     const lead = kunde.leadInstruktor || kunde.gamemaster
     return (lead && (lead.navn)) || 'Vi sætter navn på'
   }
+  if (key === 'showtime') return showtimeStatus(kunde, admin)
   return ''
 }
 
 function Besked({ titel, tekst, knap }) {
   return (
     <div className="page">
+      <TemaKnap klasse="tema-hjørne" />
       <div className="wrap">
         <div className="gate">
           <div className="gate-mark"><Icon name="flag" size={26} /></div>

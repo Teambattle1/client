@@ -52,7 +52,13 @@ export function erKodeFormat(k) {
 /** Hent én kunde ud fra koden. null = koden findes ikke. Kaster ved fejl. */
 export async function hentKunde(code) {
   if (!erKodeFormat(code)) return null
-  if (code === DEMO.code) return { ...DEMO, info: { ...(demoLæs()[DEMO.code]?.info || {}) } }
+  // Eksempelkunden bor i koden, men det VI retter på den (showtime-linket,
+  // vores folk) lægger sig oven på i browserens lager — ellers kunne den
+  // ikke bruges til at vise, hvordan en rettelse ser ud.
+  if (code === DEMO.code) {
+    const gemt = demoLæs()[DEMO.code] || {}
+    return { ...DEMO, ...gemt, code: DEMO.code, demo: true, info: { ...(gemt.info || {}) } }
+  }
 
   if (demoTilstand) {
     return demoLæs()[code] || null
@@ -106,12 +112,14 @@ export async function hentKunder(adminKode) {
  * deres eget event, uanset hvad browseren sender.
  */
 export async function opdaterKunde(adminKode, code, patch) {
-  if (demoTilstand) {
+  if (demoTilstand || code === DEMO.code) {
     const alle = demoLæs()
-    if (!alle[code]) throw new Error('Kunden findes ikke')
-    alle[code] = { ...alle[code], ...patch }
+    if (!alle[code] && code !== DEMO.code) throw new Error('Kunden findes ikke')
+    alle[code] = { ...(alle[code] || {}), ...patch }
     demoSkriv(alle)
-    return alle[code]
+    return code === DEMO.code
+      ? { ...DEMO, ...alle[code], code: DEMO.code, demo: true, info: { ...(alle[code].info || {}) } }
+      : alle[code]
   }
   const { data, error } = await supabase.rpc('portal_admin_update', {
     p_code: code, p_admin: adminKode, p_patch: patch,

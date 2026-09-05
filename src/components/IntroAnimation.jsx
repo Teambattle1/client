@@ -47,8 +47,10 @@ export function shouldPlayIntro(search, storage, reducedMotion, sti) {
   try {
     // Print-siden er en OPGAVE, ikke en ankomst. Og værre: intro'en er et
     // fuldskærmslag, så trykker man print mens den kører, kan den ende med
-    // at blive den første side i PDF'en.
-    if (/\/print\/?$/.test(String(sti || ''))) return false
+    // at blive den første side i PDF'en. Showtime er samme slags: man er
+    // allerede inde i portalen og har trykket på en knap — en velkomst dér
+    // ville lægge sig oven på det, man lige har bedt om at se.
+    if (/\/(print|showtime)\/?$/.test(String(sti || ''))) return false
     if (new URLSearchParams(search || '').has('skip_intro')) return false
     if (reducedMotion) return false
     return storage?.getItem(SESSION_KEY) !== '1'

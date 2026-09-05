@@ -19,6 +19,17 @@
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" />
     </noscript>
     <title>EventDay · Jeres event</title>
+    <!-- Har man valgt lyst eller mørkt, skal det stå på <html> FØR den
+         første tegning. Kører det først i React, når siden at blinke hvid
+         på en mørk telefon — og det blink er præcis dét, en mørk tilstand
+         findes for at undgå. Ingen valgt: attributtet sættes ikke, og
+         prefers-color-scheme bestemmer. -->
+    <script>
+      try {
+        var t = localStorage.getItem('ed_tema')
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t)
+      } catch (e) { /* privat vindue */ }
+    </script>
   </head>
   <body>
     <div id="root"></div>

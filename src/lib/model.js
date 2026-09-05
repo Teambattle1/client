@@ -1,5 +1,7 @@
-// Portalens indhold: de seks knapper, felterne kunden selv udfylder, og
+// Portalens indhold: knapperne, felterne kunden selv udfylder, og
 // eksempelkunden. Alt tekst er dansk — portalen er kundevendt.
+
+import { showtimeKlar } from './showtime'
 
 export const SECTIONS = [
   { key: 'opgave',    label: 'Hvad skal I lave', icon: 'flag',   sub: 'Aktiviteten I har bestilt' },
@@ -8,7 +10,20 @@ export const SECTIONS = [
   { key: 'okonomi',   label: 'Økonomi',          icon: 'money',  sub: 'Pris og betaling' },
   { key: 'tidslinje', label: 'Tidslinje',        icon: 'clock',  sub: 'Sådan forløber dagen' },
   { key: 'kontakt',   label: 'Kontakter',        icon: 'person', sub: 'Hvem I skal tale med' },
+  { key: 'showtime',  label: 'Showtime',         icon: 'showtime', sub: 'Billeder og resultater fra dagen' },
 ]
+
+/**
+ * Knapperne til NETOP denne kunde.
+ *
+ * Showtime er den eneste, der kan være væk: den findes først, når vi har
+ * sat linket OG tændt for det. En knap der åbner et tomt show er værre end
+ * ingen knap — kunden trykker på den dagen efter eventet, hvor forventningen
+ * er størst. VI ser den altid, ellers var der ingen steder at sætte linket.
+ */
+export function sektionerFor(kunde, admin) {
+  return SECTIONS.filter(s => s.key !== 'showtime' || admin || showtimeKlar(kunde))
+}
 
 /**
  * Hvad kunden har købt, udledt af AKTIVITETEN — ikke spurgt om en ekstra gang.
@@ -134,7 +149,7 @@ export const DEMO = {
  *  på undefined — den viser bare »ikke sat endnu«. */
 export function tomKunde(felter) {
   return {
-    firma: '', kontakt: '', email: '', telefon: '',
+    firma: '', kontakt: '', email: '', telefon: '', logoUrl: '',
     aktivitetId: '', aktivitetNavn: '',
     eventplanner: null, leadInstruktor: null,
     eventTitle: '', eventDate: '', startTime: '', endTime: '',

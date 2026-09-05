@@ -6,6 +6,8 @@ import { hentKunder, opretKunde, demoTilstand } from '../lib/data'
 import { hentAktiviteter } from '../lib/activities'
 import { hentMedarbejdere, planlæggerGrupper, somKontakt } from '../lib/crew'
 import { DEMO } from '../lib/model'
+import TemaKnap from '../components/TemaKnap'
+import LogoVaelger from '../components/LogoVaelger'
 
 /* Vores egen side: find en kunde, eller opret en ny og send dem adgang. */
 
@@ -37,6 +39,12 @@ export default function Admin({ adminKode, onLogUd }) {
 
   useEffect(() => { hent() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** Preview af en rigtig kunde hvis der er en, ellers eksempelkunden. */
+  function åbnPreview() {
+    const først = kunder.find(k => k.code) || null
+    navigate('/p/' + ((først && først.code) || DEMO.code) + '?preview=1')
+  }
+
   function hent() {
     setTilstand('indlæser')
     hentKunder(adminKode)
@@ -64,6 +72,7 @@ export default function Admin({ adminKode, onLogUd }) {
         kontakt: String(f.get('kontakt') || '').trim(),
         email: String(f.get('email') || '').trim(),
         telefon: String(f.get('telefon') || '').trim(),
+        logoUrl: String(f.get('logoUrl') || '').trim(),
         eventTitle: String(f.get('event') || '').trim() || (valgt ? valgt.name : 'Event uden navn'),
         eventDate: String(f.get('dato') || ''),
         startTime: String(f.get('start') || '').trim(),
@@ -92,6 +101,11 @@ export default function Admin({ adminKode, onLogUd }) {
           <span className="brand-mark"><Icon name="flag" size={15} /></span>
           <span className="brand-name">EventDay</span>
           <span className="brand-spacer" />
+          {/* Se siden som KUNDEN ser den. Vores egne knapper (showtime-linket,
+              »ret vores folk«) forsvinder i preview — ellers ville man sidde og
+              godkende en side, ingen kunde nogensinde får at se. */}
+          <button className="ghost-btn" onClick={() => åbnPreview()}>Preview kundeside</button>
+          <TemaKnap />
           <button className="ghost-btn" onClick={() => { setOpretter(v => !v); setNyKunde(null) }}>
             {opretter ? 'Luk' : '+ Ny kunde'}
           </button>
@@ -187,6 +201,10 @@ export default function Admin({ adminKode, onLogUd }) {
 
 function OpretForm({ onSubmit, gemmer, fejl, aktiviteter, folk }) {
   const { typiske, øvrige } = planlæggerGrupper(folk || [])
+  // Firmanavnet holdes her, så logo-søgningen kan gå i gang mens man taster.
+  // Resten af formularen læses stadig som FormData ved indsendelse.
+  const [firma, setFirma] = useState('')
+  const [logo, setLogo] = useState('')
   return (
     <form className="block" style={{ padding: 18 }} onSubmit={onSubmit}>
       <h3 style={{ fontSize: 18, marginBottom: 14 }}>Ny kunde</h3>
@@ -203,7 +221,8 @@ function OpretForm({ onSubmit, gemmer, fejl, aktiviteter, folk }) {
         </p>
       </div>
       <div className="row2">
-        <Felt navn="firma" label="Firma" ph="Nordisk Revision A/S" required />
+        <Felt navn="firma" label="Firma" ph="Nordisk Revision A/S" required
+              onChange={e => setFirma(e.target.value)} />
         <Felt navn="kontakt" label="Kontaktperson" ph="Mette Hylleborg" />
         <Felt navn="email" label="E-mail" type="email" ph="mh@firma.dk" />
         <Felt navn="telefon" label="Telefon" ph="27 41 88 05" />
@@ -237,6 +256,13 @@ function OpretForm({ onSubmit, gemmer, fejl, aktiviteter, folk }) {
       </div>
       <Felt navn="sted" label="Sted" ph="Dokk1, Hack Kampmanns Plads 2, 8000 Aarhus C" />
       <Felt navn="pris" label="Pris ekskl. moms" ph="23400" />
+
+      <div className="field">
+        <label>Kundens logo</label>
+        <LogoVaelger firma={firma} værdi={logo} onÆndre={setLogo} />
+        <input type="hidden" name="logoUrl" value={logo} />
+      </div>
+
       {fejl && <p style={{ color: 'var(--red)', fontSize: 14, marginTop: 4 }}>{fejl}</p>}
       <div className="actions" style={{ marginTop: 16 }}>
         <button className="btn btn-primary" type="submit" disabled={gemmer}>
@@ -247,11 +273,12 @@ function OpretForm({ onSubmit, gemmer, fejl, aktiviteter, folk }) {
   )
 }
 
-function Felt({ navn, label, type = 'text', ph, required }) {
+function Felt({ navn, label, type = 'text', ph, required, onChange }) {
   return (
     <div className="field">
       <label htmlFor={'n-' + navn}>{label}</label>
-      <input id={'n-' + navn} name={navn} type={type} placeholder={ph} required={required} />
+      <input id={'n-' + navn} name={navn} type={type} placeholder={ph} required={required}
+             onChange={onChange} />
     </div>
   )
 }

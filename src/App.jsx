@@ -5,6 +5,7 @@ import Landing from './pages/Landing'
 import Admin from './pages/Admin'
 import Portal from './pages/Portal'
 import PrintSide from './pages/PrintSide'
+import ShowtimeSide from './pages/ShowtimeSide'
 
 const ADMIN_NØGLE = 'ed_admin'
 
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="/" element={<Landing onAdmin={logInd} />} />
         <Route path="/p/:code" element={<Portal adminKode={adminKode} />} />
         <Route path="/p/:code/print" element={<PrintSide />} />
+        <Route path="/p/:code/showtime" element={<ShowtimeSide adminKode={adminKode} />} />
         <Route
           path="/admin"
           element={adminKode

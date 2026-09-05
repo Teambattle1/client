@@ -6,10 +6,11 @@ import { hentVenue, venueAdresse, konferenceKontakt } from '../lib/venues'
 import { hentAktivitet, aktivitetTekst, varighed } from '../lib/activities'
 import { hentMedarbejdere, planlæggerGrupper, somKontakt } from '../lib/crew'
 import { opdaterKunde } from '../lib/data'
+import Showtime from './Showtime'
 import VenueVaelger from './VenueVaelger'
 import MiniKort from './MiniKort'
 
-/* Arket der åbner, når kunden trykker på en af de seks knapper. */
+/* Arket der åbner, når kunden trykker på en af knapperne. */
 
 export default function PortalSheet({ sektion, kunde, info, gemStatus, onInfo, onLuk, adminKode, onKundeRettet }) {
   useEffect(() => {
@@ -28,6 +29,7 @@ export default function PortalSheet({ sektion, kunde, info, gemStatus, onInfo, o
     okonomi: <Okonomi kunde={kunde} />,
     tidslinje: <Tidslinje kunde={kunde} />,
     kontakt: <Kontakter kunde={kunde} info={info} adminKode={adminKode} onRettet={onKundeRettet} />,
+    showtime: <Showtime kunde={kunde} adminKode={adminKode} onRettet={onKundeRettet} onLuk={onLuk} />,
   }[s.key]
 
   return (

@@ -27,6 +27,10 @@
     --sa-bottom:env(safe-area-inset-bottom,0px);
     --sa-left:env(safe-area-inset-left,0px);
     --sa-right:env(safe-area-inset-right,0px);
+
+    /* Fortæller browseren hvilken tilstand vi tegner i, så rullebjælker,
+       dato-vælgere og indtastningsfelter ikke står lyse i en mørk side. */
+    color-scheme:light;
   }
 
   /* Installeret app på en touch-enhed: Android kan tegne kant-til-kant og
@@ -40,6 +44,7 @@
 
   @media (prefers-color-scheme:dark){
     :root:not([data-theme="light"]){
+      color-scheme:dark;
       --paper:#0e0d0b; --surface:#191715; --surface2:#221f1c;
       --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.18);
       --ink:#f2eee8; --muted:#b0aaa2; --dim:#8b857d;
@@ -52,6 +57,7 @@
     }
   }
   :root[data-theme="dark"]{
+    color-scheme:dark;
     --paper:#0e0d0b; --surface:#191715; --surface2:#221f1c;
     --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.18);
     --ink:#f2eee8; --muted:#b0aaa2; --dim:#8b857d;
@@ -86,7 +92,10 @@
   .wrap{max-width:940px;margin:0 auto}
   .eyebrow{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
 
-  .brand{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+  /* Bjælken skal kunne BRYDE. Der er kommet knapper til (preview, lys/mørk),
+     og på en telefon ville de ellers skubbe »log ud« ud over kanten og give
+     hele siden en vandret rullebjælke. */
+  .brand{display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;margin-bottom:20px}
   .brand-mark{width:26px;height:26px;border-radius:8px;flex:0 0 auto;display:grid;place-items:center;
     background:linear-gradient(150deg,var(--accent-l),var(--accent-d));box-shadow:var(--shadow-tile)}
   .brand-name{font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
@@ -365,4 +374,151 @@
   .venue-mærke{display:inline-block;margin-left:7px;padding:1px 7px;border-radius:99px;
     font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
     color:var(--gold);border:1px solid currentColor;vertical-align:1px}
+}
+
+@layer components{
+  /* ---- Showtime: valget, delingen og den indlejrede visning ---- */
+
+  /* To valg, ikke en menu. De er lige store, fordi de er lige gyldige:
+     nogle vil se billederne, andre skal bare bruge linket. */
+  .st-valg{display:grid;gap:10px}
+  .st-kort{display:flex;align-items:center;gap:13px;text-align:left;width:100%;
+    background:var(--surface2);border:1px solid var(--line2);border-radius:13px;
+    padding:14px 15px;transition:border-color .15s,transform .15s}
+  .st-kort:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .st-kort-ikon{flex:0 0 auto;width:46px;height:46px;border-radius:12px;display:grid;place-items:center;
+    background:linear-gradient(140deg,var(--accent-l),var(--accent-d));background-color:var(--accent);
+    box-shadow:var(--shadow-tile)}
+  .st-kort-tekst{min-width:0}
+  .st-kort-tekst b{display:block;font-size:16px;margin-bottom:2px}
+  .st-kort-tekst span{display:block;font-size:13px;color:var(--muted);line-height:1.35}
+
+  /* GDPR-påmindelsen. Den skal LÆSES, så den er ikke grå småtekst. */
+  .gdpr{background:var(--accent-soft);border:1px solid rgba(212,100,10,.28);
+    border-radius:13px;padding:15px;margin-bottom:14px}
+  .gdpr-top{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+  .gdpr-top h3{font-size:16px;margin:0}
+  .gdpr-ikon{flex:0 0 auto;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+    background:var(--accent)}
+  .gdpr p{font-size:14px;color:var(--ink);line-height:1.5;margin-bottom:8px}
+  .gdpr p:last-child{margin-bottom:0;font-weight:600}
+
+  /* Tænd/sluk for kundens adgang. Adskilt fra »gem link«, fordi det er to
+     forskellige beslutninger. */
+  .st-tænd{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}
+  .st-tænd b{display:block;font-size:14.5px}
+  .st-tænd span{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+  .kontakt-knap{flex:0 0 auto;width:52px;height:30px;border-radius:99px;padding:3px;
+    background:var(--line2);border:none;transition:background .15s}
+  .kontakt-knap span{display:block;width:24px;height:24px;border-radius:50%;background:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,.28);transition:transform .15s}
+  .kontakt-knap.på{background:var(--green)}
+  .kontakt-knap.på span{transform:translateX(22px)}
+  .kontakt-knap:disabled{opacity:.45}
+
+  /* Den indlejrede visning: fast bjælke øverst, showet fylder resten.
+     Bjælken bærer safe-area, ellers ligger tilbageknappen under uret. */
+  .st-side{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--paper)}
+  .st-bar{flex:0 0 auto;display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;
+    padding:calc(var(--sa-top) + 10px) calc(var(--sa-right) + 14px) 10px calc(var(--sa-left) + 14px);
+    background:var(--surface);border-bottom:1px solid var(--line)}
+  /* Knapperne må ikke brække deres egen tekst over to linjer — så bliver
+     bjælken dobbelt så høj som showet har brug for. Er der ikke plads,
+     ryger den lange halvdel af »tilbage til jeres side« ud i stedet. */
+  .st-bar .ghost-btn,.st-tilbage{white-space:nowrap}
+  .st-eget{display:inline-flex;align-items:center;gap:7px}
+  @media (max-width:520px){ .kun-bred{display:none} }
+  .st-tilbage{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:600;
+    padding:8px 13px;border-radius:99px;background:var(--surface2);border:1px solid var(--line2)}
+  .st-tilbage:hover{border-color:var(--accent);color:var(--accent)}
+  .st-bar-titel{flex:1;text-align:center;font-size:11px;font-weight:700;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--dim)}
+  .st-ramme{flex:1;min-height:0;position:relative;background:var(--surface2)}
+  .st-ramme iframe{width:100%;height:100%;border:0;display:block}
+  .st-nød{position:absolute;left:50%;bottom:calc(var(--sa-bottom) + 14px);transform:translateX(-50%);
+    max-width:min(92%,44ch);text-align:center;font-size:13px;line-height:1.45;
+    background:var(--surface);border:1px solid var(--line2);border-radius:12px;
+    padding:10px 14px;box-shadow:var(--shadow);color:var(--muted)}
+  .st-nød a{color:var(--accent);font-weight:600;text-decoration:underline}
+  @media (max-width:520px){
+    .st-bar-titel{display:none}
+  }
+}
+
+@layer components{
+  /* ---- lys/mørk-knappen ---- */
+  /* Rund og ikon-alene: den står ved siden af tekstknapper i bjælken, og
+     en knap med ord dér ville tage plads fra dem, man faktisk kom efter. */
+  .tema-knap{flex:0 0 auto;width:34px;height:34px;border-radius:999px;display:grid;place-items:center;
+    color:var(--muted);border:1px solid var(--line2);background:transparent;
+    transition:background .15s,color .15s,border-color .15s}
+  .tema-knap:hover{background:var(--surface);color:var(--ink);border-color:var(--accent)}
+
+  /* Forsiden har ingen bjælke — dér står den for sig selv i hjørnet,
+     uden for kodefeltets vej. */
+  .tema-hjørne{position:fixed;z-index:20;
+    top:calc(var(--sa-top) + 12px);right:calc(var(--sa-right) + 12px);
+    background:var(--surface);box-shadow:var(--shadow)}
+}
+
+@layer components{
+  /* ---- preview: vi kigger med kundens øjne ---- */
+  /* Bjælken er ikke til pynt: uden den kan man ikke se forskel på en side
+     man KIGGER på, og en man kan rette i — og så retter man ingenting. */
+  .preview-bar{position:sticky;top:0;z-index:15;display:flex;align-items:center;
+    justify-content:space-between;gap:12px;flex-wrap:wrap;
+    margin:calc(var(--sa-top) * -1 - 18px) calc(var(--sa-right) * -1 - 16px) 18px calc(var(--sa-left) * -1 - 16px);
+    padding:calc(var(--sa-top) + 9px) calc(var(--sa-right) + 16px) 9px calc(var(--sa-left) + 16px);
+    background:var(--accent-soft);border-bottom:1px solid rgba(212,100,10,.34);
+    font-size:13px;color:var(--ink)}
+  .preview-bar b{letter-spacing:.06em;text-transform:uppercase;font-size:11px}
+
+  /* ---- kundens logo ---- */
+  /* Hvid plade under logoet i BEGGE temaer: et logo er tit sort streg på
+     gennemsigtig baggrund, og det forsvinder i en mørk side. */
+  .logo-plade{display:grid;place-items:center;width:54px;height:54px;flex:0 0 auto;
+    border-radius:12px;background:#fff;border:1px solid var(--line2);padding:6px;overflow:hidden}
+  .logo-plade img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+  .logo-plade.tom{background:transparent;border-style:dashed;color:var(--dim)}
+  .hero-logo{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+
+  /* ---- vælgeren ---- */
+  .logo-vælger{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .logo-valgt{display:flex;align-items:center;gap:12px}
+  .logo-valgt-tekst{flex:1;min-width:0}
+  .logo-valgt-tekst b{display:block;font-size:14.5px}
+  .logo-valgt-tekst span{display:block;font-size:12.5px;color:var(--muted)}
+  .logo-forslag{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px}
+  .logo-emne{width:84px;padding:7px 5px 5px;border-radius:11px;background:var(--surface);
+    border:1px solid var(--line2);display:grid;justify-items:center;gap:5px;transition:border-color .15s}
+  .logo-emne:hover{border-color:var(--accent)}
+  .logo-emne img{width:40px;height:40px;object-fit:contain;background:#fff;border-radius:7px;padding:3px}
+  /* Kilden må aldrig blive bredere end flisen: »EVENTFLOW« er lige præcis
+     langt nok til at vælte den, og en etiket der hænger ud over kanten
+     ligner en fejl i selve billedet. */
+  .logo-emne span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--dim)}
+}
+
+@layer components{
+  /* ---- vejen hen til showtime-linket ---- */
+  .st-apps{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:8px}
+  .st-app{display:grid;justify-items:center;gap:2px;padding:9px 4px;border-radius:10px;
+    background:var(--surface);border:1px solid var(--line2);text-align:center;
+    transition:border-color .15s,transform .15s}
+  .st-app:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .st-app b{font-size:13px}
+  /* Værtsnavnet er langt og flisen smal: det må skrumpe, ikke vælte rækken. */
+  .st-app span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    font-size:9px;color:var(--dim);letter-spacing:.02em}
+  @media (max-width:400px){ .st-apps{grid-template-columns:repeat(2,1fr)} }
+
+  /* ---- anbefaling om fuld skærm ---- */
+  /* Står ØVERST, ikke som en lille note nederst: den skal læses, før man
+     begynder at kigge på showet, ellers ser man det hele i en lille rude. */
+  .st-anbefal{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    padding:9px calc(var(--sa-right) + 14px) 9px calc(var(--sa-left) + 14px);
+    background:var(--accent-soft);border-bottom:1px solid rgba(212,100,10,.3);
+    font-size:13px;line-height:1.4;color:var(--ink)}
 }

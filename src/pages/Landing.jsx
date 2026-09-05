@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Icon from '../lib/icons'
 import { erKodeFormat, tjekAdminKode, hentKunde, demoTilstand } from '../lib/data'
 import { DEMO } from '../lib/model'
+import TemaKnap from '../components/TemaKnap'
 
 /* Forsiden på client.eventday.dk. Ét felt: seks cifre.
    Kundens kode åbner deres eget projekt. Admin-koden åbner kundelisten. */
@@ -45,6 +46,7 @@ export default function Landing({ onAdmin }) {
 
   return (
     <div className="page">
+      <TemaKnap klasse="tema-hjørne" />
       <div className="wrap">
         <div className="gate">
           <div className="gate-mark"><Icon name="flag" size={26} /></div>

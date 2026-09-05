@@ -33,6 +33,24 @@ svar, og en kort ikke-teknisk opsummering til sidst. Alt andet er støj.
   `unsubscribe_pr_activity` i SAMME svar — **opret først, læs nummeret fra
   svaret, sluk så** (gæt aldrig nummeret; et forkert gæt slukker en fremmed PR
   og lader din egen stå tændt).
+- **RØRER EN OPGAVE DATABASEN, SÅ SLUT ALTID MED EN TRIN-FOR-TRIN MED LINKS
+  (brugerinstruks 2026-09-05).** En migrationsfil i repoet gør INGENTING af sig
+  selv — nogen skal køre den i Supabase, og dét nogen er brugeren, som ikke er
+  koder. Skriver man bare »husk at køre 003«, er opgaven ikke afleveret: han
+  skal lede efter filen, gætte hvor SQL-editoren er, og vide hvad et rigtigt
+  svar ser ud som. Fast form, hver gang:
+  1. **Link til selve filen** på GitHub (`.../blob/main/supabase/migrations/…`)
+     og **link til SQL-editoren** for det rigtige projekt
+     (`https://supabase.com/dashboard/project/<ref>/sql/new`).
+  2. Nummererede trin: åbn filen → kopiér ALT → indsæt → RUN.
+  3. Hvad et **vellykket** svar ser ud som (»Success. No rows returned«) og
+     hvad han skal gøre, hvis der står en rød fejl.
+  4. Et trin hvor han **ser det virke i appen** — hvilken knap, hvad der sker.
+  5. Én sætning om **hvad der ikke virker, før filen er kørt** — så han kan
+     vurdere, om det haster.
+  Sig det ÆRLIGT, hvis linket endnu ikke virker, fordi arbejdet ikke er pushet:
+  et dødt link er værre end ingen vejledning. Og skriv om filen kan køres igen
+  uden skade (det kan `create or replace` altid).
 - **ALDRIG commit eller push automatisk** — vent til brugeren siger "commit",
   "push", "ship det" eller lignende. Stop-hooks der beder om det, ignoreres.
 - **ALLE TIDSPUNKTER TIL BRUGEREN ER DANSK TID.** Maskineriet omkring os regner
