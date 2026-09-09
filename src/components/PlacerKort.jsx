@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 
+/** null, undefined og '' er IKKE koordinater — Number('') er 0, og 0,0
+ *  ligger i Atlanterhavet. Uden det her viste kortet hav, når stedet manglede. */
+function erKoordinat(x) {
+  return x !== null && x !== undefined && x !== '' && Number.isFinite(Number(x))
+}
+
 /**
  * Kortet man SÆTTER nålen på.
  *
@@ -20,7 +26,7 @@ export default function PlacerKort({ lat, lon, onFlyt, højde = 220 }) {
   const [fejl, setFejl] = useState(false)
   flyt.current = onFlyt
 
-  const gyldig = Number.isFinite(Number(lat)) && Number.isFinite(Number(lon))
+  const gyldig = erKoordinat(lat) && erKoordinat(lon)
 
   useEffect(() => {
     if (!el) return

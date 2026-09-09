@@ -116,3 +116,31 @@ bliver truffet — eller når et tilbagevendende problem løses på en måde, de
 værd at huske. Hold den kort: dateret historik hører til i `CHANGELOG.md`.
 Områdespecifikke noter lægges i `.claude/docs/<område>.md`, ikke her.
 Spørg aldrig om lov til at opdatere denne fil.
+
+## Lint
+
+`npm run lint` bruger `eslint.config.js` (ESLint 9, flat config) med React- og
+hooks-reglerne. Ubrugte variabler er fejl; skal noget bevidst stå ubrugt
+(fx en destructuring der fjerner en nøgle), så kald den `_navn`. Kør lint
+og `npm run build` før hvert push.
+
+## Mønstre der er låst (2026-09-09)
+
+- **Steder = `locations`-tabellen i CrewControlCenter-projektet** (samme som
+  venue.eventday.dk). Portalen læser OG skriver (RLS er åben). Aldrig egne
+  stedtabeller. Kobles et sted som ren tekst, tilbyder `StedVaelger` at koble
+  det til listen — ellers får kunden spørgsmålene om adgang selv.
+- **Tidslinjen bygges af sig selv** (`bygProgram`) af starttid + aktiviteternes
+  `activity_minutes`/`setup_minutes` fra `ef_activities` + rammerne fra
+  EventFlows `ef_timeline_templates`. `programAuto: true` betyder »vores gæt,
+  må bygges om«; en håndrettet tidslinje sætter det til `false` og røres ikke.
+- **Aktivitetstekst**: kundens egen (`aktiviteter[].tekst`) vinder over
+  grundteksten (`ef_activities.long_description`). »Kopiér grundteksten« er
+  vejen til en rettelse for én kunde; »Gem som grundtekst« rammer alle.
+- **Obligatoriske kundefelter** har `skal: true` i `INFO_FIELDS` og lyser
+  orange, til de er udfyldt (`.field.mangler`). Fakturaoplysninger ligger i
+  `info.faktura` og gemmes som resten af »info fra jer«.
+- **Koordinater**: `null`/`''` er IKKE en koordinat (Number('') er 0). Brug
+  `erKoordinat` i kortkomponenterne — ellers viser kortet Atlanterhavet.
+- **Sandkassen kan ikke nå Supabase/Google Fonts/OSM.** Skærmbilleder tages
+  i demo-tilstand (kode 100100/100408); grå kortfliser er forventet dér.

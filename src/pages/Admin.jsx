@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../lib/icons'
-import { danskDato, dageTil, initialer, portalLink } from '../lib/format'
+import { initialer, portalLink } from '../lib/format'
 import { hentKunder, opretKunde, opdaterKunde, demoTilstand } from '../lib/data'
-import { hentAktiviteter } from '../lib/activities'
+import { hentAktiviteter, hentTidslinjeRammer } from '../lib/activities'
 import { hentMedarbejdere, planlæggerGrupper, somKontakt } from '../lib/crew'
 import { DEMO } from '../lib/model'
 import TemaKnap from '../components/TemaKnap'
 import LogoVaelger from '../components/LogoVaelger'
 import KundeRaekke, { FjernKundeDialog } from '../components/KundeRaekke'
-import AktivitetsVaelger from '../components/AktivitetsVaelger'
+import AktivitetsVaelger, { AfviklingValg } from '../components/AktivitetsVaelger'
 import StedVaelger from '../components/StedVaelger'
-import { aktivitetsFelter, standardEventNavn } from '../lib/aktivitetsplan'
+import { aktivitetsFelter, standardEventNavn, programFelter, AFVIKLING } from '../lib/aktivitetsplan'
 
 /* Vores egen side: find en kunde, eller opret en ny og send dem adgang. */
 
@@ -30,6 +30,7 @@ export default function Admin({ adminKode, onLogUd }) {
   const [fjernFejl, setFjernFejl] = useState(null)
   const [arbejder, setArbejder] = useState(false)
   const [visSkjulte, setVisSkjulte] = useState(false)
+  const [rammer, setRammer] = useState({})   // dagens faste minutter fra EventFlows skabelon
 
   // Kataloget hentes én gang. Fejler det, står formularen tilbage med et
   // frit felt til eventnavnet — man skal kunne oprette en kunde, selv om
@@ -42,6 +43,7 @@ export default function Admin({ adminKode, onLogUd }) {
     hentMedarbejdere()
       .then(m => { if (!død) setFolk(m) })
       .catch(() => { /* uden medarbejderliste: sættes på bagefter */ })
+    hentTidslinjeRammer().then(r => { if (!død) setRammer(r) })
     return () => { død = true }
   }, [])
 
@@ -88,11 +90,21 @@ export default function Admin({ adminKode, onLogUd }) {
     let valgteAkt = []
     try { valgteAkt = JSON.parse(String(f.get('aktiviteter') || '[]')) } catch { valgteAkt = [] }
     const felter = aktivitetsFelter(valgteAkt)
+    const afvikling = AFVIKLING.some(a => a.værdi === f.get('afvikling')) ? String(f.get('afvikling')) : 'parallel'
     setGemmer(true)
     setFejl(null)
     try {
+      // Tidslinjen bygges MED DET SAMME af dato, starttid og aktiviteternes
+      // tider fra kataloget — så kunden aldrig åbner en tom tidslinje. Den
+      // kan rettes bagefter, og så holder vi fingrene fra den.
+      const grund = {
+        startTime: String(f.get('start') || '').trim(),
+        aktiviteter: felter.aktiviteter, afvikling, endTime: '', programAuto: true,
+      }
       const kunde = await opretKunde(adminKode, {
         firma,
+        afvikling,
+        ...programFelter(grund, { rammer }),
         // Aktiviteterne afgør både hvad kunden ser under »hvad skal I lave«
         // og hvilke spørgsmål de får — TeamTaste spørger om allergier.
         ...felter,
@@ -257,6 +269,7 @@ function OpretForm({ onSubmit, gemmer, fejl, aktiviteter, folk }) {
   const [firma, setFirma] = useState('')
   const [logo, setLogo] = useState('')
   const [valgtAkt, setValgtAkt] = useState([])
+  const [afvikling, setAfvikling] = useState('parallel')
   const [sted, setSted] = useState({ sted: '', venueId: '', lat: null, lon: null })
   return (
     <form className="block" style={{ padding: 18 }} onSubmit={onSubmit}>
@@ -271,6 +284,12 @@ function OpretForm({ onSubmit, gemmer, fejl, aktiviteter, folk }) {
             : 'Aktivitetslisten kunne ikke hentes — skriv eventets navn i feltet nedenfor i stedet.'}
         </p>
       </div>
+      {valgtAkt.length > 1 && (
+        <>
+          <AfviklingValg værdi={afvikling} onÆndre={setAfvikling} />
+          <input type="hidden" name="afvikling" value={afvikling} />
+        </>
+      )}
       <div className="row2">
         <Felt navn="firma" label="Firma" ph="Nordisk Revision A/S" required
               onChange={e => setFirma(e.target.value)} />
@@ -280,7 +299,7 @@ function OpretForm({ onSubmit, gemmer, fejl, aktiviteter, folk }) {
         <Felt navn="event" label="Event-navn (valgfrit)"
               ph={standardEventNavn(valgtAkt) || 'Byjagt i Aarhus'} />
         <Felt navn="dato" label="Dato" type="date" />
-        <Felt navn="start" label="Starttid" ph="13.00" />
+        <Felt navn="start" label="Starttid" ph="13.00" required />
         <Felt navn="antal" label="Antal deltagere" ph="48" />
       </div>
       <div className="row2">

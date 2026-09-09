@@ -5,8 +5,8 @@ import MiniKort from '../components/MiniKort'
 import { hentKunde } from '../lib/data'
 import { hentVenue, venueAdresse, konferenceKontakt, ankomstNote } from '../lib/venues'
 import { hentAktivitet, aktivitetTekst, varighed } from '../lib/activities'
-import { infoFieldsFor } from '../lib/model'
-import { aktivitetsNavne, programRækker, aktiviteterFor, miljøTekst } from '../lib/aktivitetsplan'
+import { infoFieldsFor, PRAKTISK, praktiskFor } from '../lib/model'
+import { aktivitetsNavne, programRækker, aktiviteterFor, miljøTekst, plusMinutter, afviklingFor, AFVIKLING } from '../lib/aktivitetsplan'
 import { danskDato } from '../lib/format'
 import '../styles/print.css'
 
@@ -74,10 +74,22 @@ export default function PrintSide() {
   const forhold = aktiviteterFor(kunde).filter(a => a.miljø || a.note)
 
   // Kun de svar der betyder noget på dagen — ikke hele formularen igen.
+  // Starttid og sms står i deres egen boks øverst; de er ikke et svar
+  // blandt andre, de er dét, instruktøren planlægger morgenen efter.
   const svar = infoFieldsFor(kunde)
-    .filter(f => ['deltagere', 'hold', 'ankomst', 'allergi', 'logistik', 'bemaerk'].includes(f.key))
+    .filter(f => ['deltagere', 'hold', 'allergi', 'logistik', 'bemaerk'].includes(f.key))
     .map(f => [f.kort || f.label, info[f.key]])
     .filter(([, v]) => v && String(v).trim())
+
+  // Ankomst og opsætning: »Vi rigger op« er første række i den byggede
+  // tidslinje; findes den ikke, regner vi 45 minutter før starten.
+  const rigger = program.find(r => /rigger op|ops[æa]tning/i.test(r.titel || ''))
+  const viAnkommer = (rigger && rigger.tid) || plusMinutter(kunde.startTime, -45)
+  const kundenKlar = String(info.ankomst || '').trim()
+  const sms = String(info.smsAnkomst || '').trim()
+  const smsTil = info.kontaktDagen && typeof info.kontaktDagen === 'object' ? info.kontaktDagen : null
+  const grupper = Array.isArray(kunde.grupper) ? kunde.grupper.filter(Boolean) : []
+  const alleAkt = aktiviteterFor(kunde)
 
   return (
     <>
@@ -91,6 +103,7 @@ export default function PrintSide() {
       <div className="print-side">
         <div className="p-top">
           <div>
+            <span className="p-over">Instruktørseddel</span>
             <h1>{kunde.eventTitle || aktNavn}</h1>
             <p className="p-firma">{kunde.firma}{kunde.kontakt ? ' · ' + kunde.kontakt : ''}</p>
           </div>
@@ -108,11 +121,27 @@ export default function PrintSide() {
           <div><dt>Deltagere</dt><dd>{info.deltagere || kunde.deltagere || '—'}</dd></div>
         </dl>
 
+        {/* Morgenen på én linje: hvornår vi holder der, hvornår kunden
+            selv siger de er klar, og om de vil have en sms. Det er det
+            første, instruktøren kigger efter — så det står først og stort. */}
+        <div className="p-ankomst">
+          <div><dt>Vi ankommer</dt><dd>{viAnkommer || '—'}</dd><small>rigger op på aftalt location</small></div>
+          <div><dt>Kunden klar til start</dt><dd>{kundenKlar || (kunde.startTime || '—')}</dd>
+            <small>{kundenKlar ? 'kundens eget svar' : 'ikke svaret — aftalt start'}</small></div>
+          <div className={sms === 'Ja tak' ? 'p-ankomst-sms' : ''}>
+            <dt>SMS ved ankomst</dt>
+            <dd>{sms || 'Ikke svaret'}</dd>
+            <small>{sms === 'Ja tak' && smsTil && (smsTil.tlf || smsTil.navn)
+              ? `til ${[smsTil.navn, smsTil.tlf].filter(Boolean).join(' · ')}`
+              : sms === 'Ja tak' ? 'kontaktperson på dagen mangler' : 'kontaktperson på dagen'}</small>
+          </div>
+        </div>
+
         <div className="p-kolonner">
           <div>
             <section className="p-blok">
               <h2>Location</h2>
-              <MiniKort lat={lat} lon={lon} højde="52mm" zoom={15} klasse="p-kort" nålKlasse="p-naal" />
+              <MiniKort lat={lat} lon={lon} højde="52mm" zoom={15} klasse="p-kort" nålKlasse="p-naal" kanForstørres={false} />
               <p className="p-adresse">{adresse || 'Stedet er ikke sat endnu'}</p>
               {venue && <p className="p-dæmpet">{venue.name}</p>}
               {kunde.modested && !egen && <p>{kunde.modested}</p>}
@@ -121,8 +150,31 @@ export default function PrintSide() {
                 : sted.adgang
                   ? <p style={{ marginTop: '2mm' }}><b>Sådan kommer vi ind:</b> {sted.adgang}</p>
                   : null}
-              {kunde.parkering && <p className="p-dæmpet">Parkering: {kunde.parkering}</p>}
+              {!egen && (
+                <dl className="p-svar" style={{ marginTop: '2mm' }}>
+                  {PRAKTISK.map(f => <Rk key={f.key} navn={f.label} værdi={praktiskFor(kunde, venue)[f.key] || '—'} />)}
+                </dl>
+              )}
             </section>
+
+            {alleAkt.length > 0 && (
+              <section className="p-blok">
+                <h2>Aktiviteter</h2>
+                {alleAkt.map((a, i) => (
+                  <div className="p-forhold" key={a.id || i}>
+                    <b>{alleAkt.length > 1 ? `${i + 1}. ` : ''}{a.navn}</b>
+                    {a.minutter && <span className="p-forhold-mærke">{a.minutter} min</span>}
+                    {a.opsætning && <span className="p-forhold-note">Opsætning {a.opsætning} min</span>}
+                  </div>
+                ))}
+                {alleAkt.length > 1 && (
+                  <p className="p-dæmpet" style={{ marginTop: '1.5mm' }}>
+                    {(AFVIKLING.find(x => x.værdi === afviklingFor(kunde)) || AFVIKLING[0]).lang}
+                    {grupper.length ? ` — ${grupper.join(', ')}` : ''}
+                  </p>
+                )}
+              </section>
+            )}
 
             {tekst && (
               <section className="p-blok">

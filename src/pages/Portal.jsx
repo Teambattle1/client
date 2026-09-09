@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Icon from '../lib/icons'
 import { sektionerFor, infoFieldsFor, infoUdfyldt } from '../lib/model'
 import { danskDato, dageTil, kr } from '../lib/format'
+import { fakturaUdfyldt } from '../lib/cvr'
 import { hentKunde, gemInfo, opdaterKunde } from '../lib/data'
 import { showtimeStatus } from '../lib/showtime'
 import PortalSheet from '../components/PortalSheet'
@@ -152,7 +153,7 @@ export default function Portal({ adminKode }) {
               <span className="tile-icon"><Icon name={s.icon} size={46} /></span>
               <span className="tile-body">
                 <span className="tile-label">{s.label}</span>
-                <span className="tile-status">{status(s.key, kunde, udfyldt, felter.length, somAdmin)}</span>
+                <span className="tile-status">{status(s.key, kunde, udfyldt, felter.length, somAdmin, info)}</span>
               </span>
             </button>
           ))}
@@ -278,17 +279,15 @@ function KundeLogo({ kunde, adminKode, onRettet }) {
   )
 }
 
-function status(key, kunde, udfyldt, antal, admin) {
+function status(key, kunde, udfyldt, antal, admin, info) {
   if (key === 'opgave') return kunde.eventTitle || 'Jeres event'
   if (key === 'info') return `${udfyldt} af ${antal} udfyldt`
   if (key === 'location') return (kunde.sted || 'Ikke sat').split(',')[0]
-  if (key === 'okonomi') return kunde.betalt ? 'Betalt' : kr(kunde.pris)
+  if (key === 'okonomi') return kunde.betalt ? 'Betalt' : !fakturaUdfyldt(info && info.faktura) ? 'Mangler fakturaoplysninger' : kr(kunde.pris)
   if (key === 'tidslinje') return (kunde.program || []).length ? 'Start ' + (kunde.startTime || '—') : 'Kommer snart'
-  if (key === 'kontakt') {
-    // Flisen viser den kunden oftest skal bruge: instruktøren på dagen.
-    const lead = kunde.leadInstruktor || kunde.gamemaster
-    return (lead && (lead.navn)) || 'Vi sætter navn på'
-  }
+  // Ingen navne på flisen: hvem der er på, kan skifte til det sidste, og
+  // et navn på forsiden er et løfte. Navnene står inde i arket.
+  if (key === 'kontakt') return 'Hvem I skal tale med'
   if (key === 'showtime') return showtimeStatus(kunde, admin)
   return ''
 }
