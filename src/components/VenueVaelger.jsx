@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import Icon from '../lib/icons'
 import MiniKort from './MiniKort'
 import { søgAdresse } from '../lib/address'
+import { hentVenue, ankomstNote } from '../lib/venues'
 
 /**
  * »Hvor skal det foregå?« — kundens halvdel af spørgsmålet.
@@ -28,6 +29,18 @@ import { søgAdresse } from '../lib/address'
 export default function VenueVaelger({ værdi, onÆndre, voresSted }) {
   const v = værdi || {}
   const vores = voresSted && String(voresSted.sted || '').trim() ? voresSted : null
+
+  // Er det ET AF VORES steder, henter vi stedets egen ankomst-info: den er
+  // skrevet af dem, der kender stedet, og det er DEN kunden skal læse —
+  // ikke et spørgsmål om noget, vi allerede ved.
+  const [venue, setVenue] = useState(null)
+  const venueId = (vores && vores.venueId) || ''
+  useEffect(() => {
+    if (!venueId) { setVenue(null); return }
+    let død = false
+    hentVenue(venueId).then(x => { if (!død) setVenue(x) }).catch(() => { /* kortet og adressen står der stadig */ })
+    return () => { død = true }
+  }, [venueId])
 
   const [adrTekst, setAdrTekst] = useState(v.adresse || '')
   const [forslag, setForslag] = useState([])
@@ -66,9 +79,15 @@ export default function VenueVaelger({ værdi, onÆndre, voresSted }) {
           <span className="vores-sted-ikon"><Icon name="pin" size={18} /></span>
           <div>
             <b>{vores.sted}</b>
-            <span>Stedet er aftalt — I skal ikke gøre mere her.</span>
+            <span>{vores.venueId ? 'Et af vores faste steder — I skal ikke gøre mere her.' : 'Stedet er aftalt — I skal ikke gøre mere her.'}</span>
           </div>
         </div>
+        {vores.modested && (
+          <p className="vores-modested"><b>Vi mødes:</b> {vores.modested}</p>
+        )}
+        {venue && ankomstNote(venue) && (
+          <p className="vores-ankomst"><b>Sådan kommer I frem:</b> {ankomstNote(venue)}</p>
+        )}
         <MiniKort lat={vores.lat} lon={vores.lon} højde={150} />
         <p className="hint" style={{ marginTop: 8 }}>
           Skal mødestedet flyttes, så ring til os på 40 27 40 27 — så retter vi det.

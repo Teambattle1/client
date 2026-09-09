@@ -27,16 +27,27 @@
 export function aktiviteterFor(kunde) {
   const k = kunde || {}
   if (Array.isArray(k.aktiviteter) && k.aktiviteter.length) {
-    return k.aktiviteter.filter(a => a && (a.id || a.navn)).map(a => ({
-      id: String(a.id || ''), navn: String(a.navn || '').trim(),
-      miljø: MILJØER.some(m => m.værdi === a.miljø) ? a.miljø : '',
-      note: String(a.note || '').trim(),
-    }))
+    return k.aktiviteter.filter(a => a && (a.id || a.navn)).map(renAktivitet)
   }
   if (k.aktivitetId || k.aktivitetNavn) {
-    return [{ id: String(k.aktivitetId || ''), navn: String(k.aktivitetNavn || '').trim(), miljø: '', note: '' }]
+    return [renAktivitet({ id: k.aktivitetId, navn: k.aktivitetNavn })]
   }
   return []
+}
+
+/** Én aktivitet på den form resten af appen regner med — uanset hvor
+ *  lidt der var gemt. Tiderne kommer fra kataloget, når den vælges, og
+ *  bliver hos kunden: dagen skal ikke skride, fordi kataloget rettes. */
+function renAktivitet(a) {
+  const tal = x => (Number.isFinite(Number(x)) && Number(x) > 0) ? Number(x) : null
+  return {
+    id: String(a.id || ''), navn: String(a.navn || '').trim(),
+    miljø: MILJØER.some(m => m.værdi === a.miljø) ? a.miljø : '',
+    note: String(a.note || '').trim(),
+    tekst: String(a.tekst || ''),
+    minutter: tal(a.minutter),
+    opsætning: tal(a.opsætning),
+  }
 }
 
 /**
@@ -67,12 +78,7 @@ export function miljøTekst(værdi, lang) {
  * eventet, præcis som før.
  */
 export function aktivitetsFelter(liste) {
-  const rene = (liste || []).filter(a => a && (a.id || a.navn))
-    .map(a => ({
-      id: String(a.id || ''), navn: String(a.navn || '').trim(),
-      miljø: MILJØER.some(m => m.værdi === a.miljø) ? a.miljø : '',
-      note: String(a.note || '').trim(),
-    }))
+  const rene = (liste || []).filter(a => a && (a.id || a.navn)).map(renAktivitet)
   return {
     aktiviteter: rene,
     aktivitetId: rene[0]?.id || '',
@@ -234,4 +240,132 @@ export function rundeplan({ aktiviteter, grupper, start, blokMinutter = 60, paus
 
   rækker.push({ tid, titel: 'Fælles afslutning', note: 'Resultater og præmie' })
   return rækker
+}
+
+/* ---------- dagen, bygget af sig selv ---------- */
+
+/**
+ * Hvordan afvikles to (eller flere) aktiviteter?
+ *
+ *  · DELT I GRUPPER: deltagerne deles, aktiviteterne kører samtidig, og
+ *    grupperne bytter efter en omgang. Alle når alt, ingen venter. Det er
+ *    den normale dag.
+ *  · EFTER HINANDEN: alle laver det samme — først den ene, så den næste.
+ *    Dagen bliver længere, men gruppen er samlet hele vejen.
+ *
+ * Det er et spørgsmål, ikke et gæt: vi spørger, når der vælges aktivitet
+ * nummer to, og svaret gemmes på kunden.
+ */
+export const AFVIKLING = [
+  { værdi: 'parallel',    kort: 'Delt i grupper',  lang: 'Deltagerne deles i grupper, aktiviteterne kører samtidig, og grupperne bytter undervejs' },
+  { værdi: 'forlængelse', kort: 'Efter hinanden',  lang: 'Alle laver det samme — først den ene aktivitet, så den næste' },
+]
+
+export function afviklingFor(kunde) {
+  const a = kunde && kunde.afvikling
+  return AFVIKLING.some(x => x.værdi === a) ? a : 'parallel'
+}
+
+/**
+ * Dagens faste rammer. De læses fra EventFlows tidslinjeskabelon (»TeamBattle
+ * Standard«) når databasen svarer — det er dét, der ligger her, hvis den
+ * ikke gør. Tallene er de samme som i skabelonen i dag.
+ */
+export const STANDARD_RAMMER = { opsætning: 30, velkomst: 10, kåring: 15, pause: 10, aktivitet: 90 }
+
+/** Grupperne, som de hedder når ingen har givet dem navne. */
+export function standardGrupper(antal) {
+  return Array.from({ length: Math.max(2, antal || 2) }, (_, i) => `Gruppe ${i + 1}`)
+}
+
+/**
+ * Tidslinjen, bygget af det vi ved: starttid, aktiviteter og deres tider
+ * fra kataloget, og hvordan dagen afvikles.
+ *
+ * Rækkefølgen følger EventFlows egen skabelon: vi rigger op FØR kunden
+ * kommer, velkomst og briefing, aktiviteterne, kåring af vinder. Vores egne
+ * rækker efter kåringen (nedpakning, afgang) er ikke med — kunden er gået,
+ * og de skal ikke stå og læse om, hvornår vi pakker bilen.
+ *
+ * Svarer med { program, slut } så sluttiden kan sættes på kunden samtidig.
+ * Er der intet at bygge af (ingen starttid, ingen aktivitet), er programmet
+ * tomt — vi finder ikke på en dag.
+ */
+export function bygProgram({ aktiviteter, start, afvikling = 'parallel', grupper, rammer } = {}) {
+  const r = { ...STANDARD_RAMMER, ...(rammer || {}) }
+  const akt = (aktiviteter || []).map(a => ({
+    navn: String(a?.navn || a?.name || '').trim(),
+    minutter: Number(a?.minutter || a?.activity_minutes || a?.duration_minutes) || r.aktivitet,
+    opsætning: Number(a?.opsætning || a?.setup_minutes) || 0,
+  })).filter(a => a.navn)
+  if (!akt.length || !plusMinutter(start, 0)) return { program: [], slut: '' }
+
+  const parallel = akt.length > 1 && afvikling === 'parallel'
+  const grp = (parallel ? (grupper && grupper.length >= 2 ? grupper : standardGrupper(akt.length)) : [])
+    .map(g => String(g || '').trim()).filter(Boolean)
+  const antal = parallel ? Math.min(akt.length, grp.length) : 0
+
+  const opsætning = Math.max(r.opsætning, ...akt.map(a => a.opsætning))
+  const program = [
+    { tid: plusMinutter(start, -opsætning), titel: 'Vi rigger op', note: 'I skal ikke være der endnu' },
+    { tid: start, titel: 'Velkomst og briefing',
+      note: parallel ? `I deles i ${antal} grupper` : 'Programmet og reglerne for dagen' },
+  ]
+  let tid = plusMinutter(start, r.velkomst)
+
+  if (parallel) {
+    // Alle omgange er lige lange: den længste aktivitet sætter takten, for
+    // grupperne skal bytte på samme tid.
+    const blok = Math.max(...akt.slice(0, antal).map(a => a.minutter))
+    for (let omgang = 0; omgang < antal; omgang++) {
+      program.push({
+        tid, titel: `Omgang ${omgang + 1}`, note: '',
+        // Rotationen: gruppe i tager aktivitet (i + omgang) rundt i ringen.
+        spor: grp.slice(0, antal).map((g, i) => ({ gruppe: g, titel: akt[(i + omgang) % antal].navn })),
+      })
+      tid = plusMinutter(tid, blok)
+      if (omgang < antal - 1) {
+        program.push({ tid, titel: 'Skift og pause', note: 'Grupperne bytter aktivitet' })
+        tid = plusMinutter(tid, r.pause)
+      }
+    }
+  } else {
+    akt.forEach((a, i) => {
+      program.push({ tid, titel: a.navn, note: '' })
+      tid = plusMinutter(tid, a.minutter)
+      if (i < akt.length - 1) {
+        program.push({ tid, titel: 'Kort pause', note: 'Så gør vi klar til det næste' })
+        tid = plusMinutter(tid, r.pause)
+      }
+    })
+  }
+
+  program.push({ tid, titel: 'Kåring af vinder', note: 'Pointoptælling, præmie og fælles afslutning' })
+  const slut = plusMinutter(tid, r.kåring)
+  return { program, slut }
+}
+
+/**
+ * Felterne der skal gemmes, når dagen bygges af sig selv.
+ *
+ * `programAuto` er mærket: så længe det står, er tidslinjen vores gæt, og
+ * den må bygges om, når aktiviteterne ændrer sig. Har nogen rettet i den
+ * med hånden, sættes mærket af — og så rører vi den ikke igen.
+ */
+export function programFelter(kunde, { aktiviteter, afvikling, rammer, grupper } = {}) {
+  const k = kunde || {}
+  const { program, slut } = bygProgram({
+    aktiviteter: aktiviteter || aktiviteterFor(k),
+    start: k.startTime,
+    afvikling: afvikling || afviklingFor(k),
+    grupper: grupper || k.grupper,
+    rammer,
+  })
+  if (!program.length) return {}
+  const ud = { program, programAuto: true }
+  if (!k.endTime || k.programAuto) ud.endTime = slut
+  if (program.some(r => r.spor) && !(k.grupper && k.grupper.length)) {
+    ud.grupper = program.find(r => r.spor).spor.map(s => s.gruppe)
+  }
+  return ud
 }

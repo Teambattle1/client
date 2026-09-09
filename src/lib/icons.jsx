@@ -24,6 +24,7 @@ const PATHS = {
   // Showtime: et lærred med en afspil-trekant. Billeder OG resultater vises
   // dér, så hverken et fotoapparat eller en pokal ville dække det alene.
   showtime: <><rect x="2.9" y="4.6" width="18.2" height="12.6" rx="2.1" /><path d="M10.2 9.1v3.6l3.3-1.8z" /><path d="M8.2 20.4h7.6" /></>,
+  pen:    <><path d="M4.6 19.4l4.1-.9L19.2 8a1.9 1.9 0 0 0 0-2.7l-.5-.5a1.9 1.9 0 0 0-2.7 0L5.5 15.3z" /><path d="M14.6 6.2l3.2 3.2" /></>,
   mail:   <><rect x="3.2" y="5.4" width="17.6" height="13.2" rx="2" /><path d="m3.9 6.6 8.1 6 8.1-6" /></>,
 }
 

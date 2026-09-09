@@ -50,9 +50,9 @@ export default function Landing({ onAdmin }) {
       <div className="wrap">
         <div className="gate">
           <div className="gate-mark"><Icon name="flag" size={26} /></div>
-          <div className="eyebrow" style={{ marginBottom: 9 }}>Velkommen til TeamBattle</div>
-          <h1>Jeres event hos EventDay</h1>
-          <p>Tast de seks cifre I har fået fra os, så åbner jeres egen side.</p>
+          <div className="eyebrow" style={{ marginBottom: 9 }}>Velkommen til TeamBattles kundeunivers</div>
+          <h1>EventDay</h1>
+          <p>Tast jeres sekscifrede kode, så åbner jeres egen side.</p>
 
           <form onSubmit={e => { e.preventDefault(); if (erKodeFormat(kode)) prøv(kode) }}>
             <input

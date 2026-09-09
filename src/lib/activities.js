@@ -46,11 +46,69 @@ export async function hentAktivitet(id) {
  * skrev på kunden; findes heller ikke den, siger vi det ærligt.
  */
 export function aktivitetTekst(aktivitet, kundensEgen) {
-  const lang = String((aktivitet && aktivitet.long_description) || '').trim()
-  if (lang) return lang
+  // Kundens egen tekst vinder: den er en kopi af grundteksten, som nogen
+  // har rettet til netop denne dag. Grundteksten er dét, alle andre ser.
   const egen = String(kundensEgen || '').trim()
   if (egen) return egen
-  return ''
+  return grundtekst(aktivitet)
+}
+
+/** Grundteksten fra EventFlows katalog — den alle kunder ser, indtil de får
+ *  deres egen. `short_description` bruges ALDRIG (se ovenfor). */
+export function grundtekst(aktivitet) {
+  return String((aktivitet && aktivitet.long_description) || '').trim()
+}
+
+/**
+ * Ret grundteksten — for ALLE kunder, og i EventFlows eget katalog.
+ *
+ * Det er samme række, tilbudsbyggeren læser af, så det er en beslutning,
+ * ikke en rettelse til én dag. Skal teksten kun ændres for én kunde,
+ * kopieres den over på kunden i stedet.
+ */
+export async function gemGrundtekst(id, tekst) {
+  if (!erKoblet) throw new Error('Der er ingen database koblet på.')
+  const { error } = await supabase
+    .from('ef_activities')
+    .update({ long_description: String(tekst || '').trim() })
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+/**
+ * Dagens rammer fra EventFlows tidslinjeskabelon.
+ *
+ * Skabelonen »TeamBattle Standard« har én række pr. fast punkt på dagen
+ * (opsætning, velkomst, kåring …) med minutter på. Vi læser tallene, ikke
+ * rækkerne: det er OS der bestemmer, hvad kunden ser, men det er
+ * skabelonen der bestemmer, hvor lang tid tingene tager. Svarer altid —
+ * kan den ikke hentes, gælder standardtallene.
+ */
+export async function hentTidslinjeRammer() {
+  if (!erKoblet) return {}
+  try {
+    const { data, error } = await supabase
+      .from('ef_timeline_templates')
+      .select('name, items')
+      .order('created_at', { ascending: true })
+      .limit(10)
+    if (error || !data || !data.length) return {}
+    const skabelon = data.find(t => /standard/i.test(t.name || '')) || data[0]
+    const items = Array.isArray(skabelon.items) ? skabelon.items : []
+    const minutter = mønster => {
+      const r = items.find(x => (x.tags || []).some(t => mønster.test(String(t))) || mønster.test(String(x.name || '')))
+      const m = Number(r && r.duration_minutes)
+      return Number.isFinite(m) && m > 0 ? m : undefined
+    }
+    const ud = {
+      opsætning: minutter(/ops[æa]tning/i),
+      velkomst: minutter(/velkomst|briefing/i),
+      kåring: minutter(/k[åa]ring|afslutning/i),
+    }
+    return Object.fromEntries(Object.entries(ud).filter(([, v]) => v !== undefined))
+  } catch {
+    return {}
+  }
 }
 
 /** »2 timer 15 min« — minutter er en oplysning til os, ikke til kunden. */

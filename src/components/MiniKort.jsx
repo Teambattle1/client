@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 
+/** null, undefined og '' er IKKE koordinater — Number('') er 0, og 0,0
+ *  ligger i Atlanterhavet. Uden det her viste kortet hav, når stedet manglede. */
+function erKoordinat(x) {
+  return x !== null && x !== undefined && x !== '' && Number.isFinite(Number(x))
+}
+
 /**
  * Et lille kort med ét punkt på. Bruges til at VISE hvor mødestedet ligger —
  * ikke til at navigere efter, det klarer knappen til kortappen.
@@ -12,12 +18,52 @@ import { useEffect, useRef, useState } from 'react'
  * en billedfil, som en bundler flytter, og så står der et hul i stedet for en
  * nål. Vores er ren CSS og kan ikke gå i stykker.
  */
-export default function MiniKort({ lat, lon, højde = 180, zoom = 15, klasse = 'kort', nålKlasse = 'kort-naal' }) {
+export default function MiniKort({ lat, lon, højde = 180, zoom = 15, klasse = 'kort', nålKlasse = 'kort-naal', kanForstørres = true }) {
+  const [stor, setStor] = useState(false)
+  const gyldig = erKoordinat(lat) && erKoordinat(lon)
+
+  // Luk det store kort på Escape — det er en overlejring, og den skal kunne
+  // forlades uden at lede efter krydset.
+  useEffect(() => {
+    if (!stor) return
+    const luk = e => { if (e.key === 'Escape') setStor(false) }
+    window.addEventListener('keydown', luk)
+    return () => window.removeEventListener('keydown', luk)
+  }, [stor])
+
+  if (!gyldig) return null
+  if (!kanForstørres) return <Kort lat={lat} lon={lon} højde={højde} zoom={zoom} klasse={klasse} nålKlasse={nålKlasse} />
+
+  return (
+    <>
+      {/* Et tryk på det lille kort åbner det store: zoomet ind og centreret
+          på nålen, så man kan se præcis hvor vi står — ikke bare hvilken by. */}
+      <div className="kort-lille" role="button" tabIndex={0} aria-label="Åbn stort kort"
+           onClick={() => setStor(true)}
+           onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setStor(true) } }}>
+        <Kort lat={lat} lon={lon} højde={højde} zoom={zoom} klasse={klasse} nålKlasse={nålKlasse} />
+        <span className="kort-forstoer" aria-hidden="true">Tryk for stort kort</span>
+      </div>
+      {stor && (
+        <div className="kort-stor-back" onClick={e => { if (e.target === e.currentTarget) setStor(false) }}>
+          <div className="kort-stor" role="dialog" aria-modal="true" aria-label="Kort over mødestedet">
+            <Kort lat={lat} lon={lon} højde="100%" zoom={Math.max(zoom, 17)} klasse="kort kort-fuld"
+                  nålKlasse={nålKlasse} interaktiv />
+            <button type="button" className="kort-luk" onClick={() => setStor(false)} aria-label="Luk kortet">✕</button>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+/** Selve kortet. Det store er det samme kort, bare interaktivt og zoomet ind. */
+function Kort({ lat, lon, højde, zoom, klasse, nålKlasse, interaktiv = false }) {
   const [el, setEl] = useState(null)   // state-backet: elementet findes ikke i første render
   const kortRef = useRef(null)
   const [fejl, setFejl] = useState(false)
 
-  const gyldig = Number.isFinite(Number(lat)) && Number.isFinite(Number(lon))
+  const gyldig = erKoordinat(lat) && erKoordinat(lon)
 
   useEffect(() => {
     if (!el || !gyldig) return
@@ -33,9 +79,12 @@ export default function MiniKort({ lat, lon, højde = 180, zoom = 15, klasse = '
         kort = L.map(el, {
           center: [Number(lat), Number(lon)],
           zoom,
-          zoomControl: false,
+          zoomControl: interaktiv,
           attributionControl: true,
-          scrollWheelZoom: false,   // kortet ligger i et ark der scroller
+          scrollWheelZoom: interaktiv,   // det lille kort ligger i et ark der scroller
+          dragging: interaktiv,
+          touchZoom: interaktiv,
+          doubleClickZoom: interaktiv,
         })
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 19,
@@ -59,7 +108,7 @@ export default function MiniKort({ lat, lon, højde = 180, zoom = 15, klasse = '
       død = true
       if (kortRef.current) { kortRef.current.remove(); kortRef.current = null }
     }
-  }, [el, lat, lon, zoom, gyldig, nålKlasse])
+  }, [el, lat, lon, zoom, gyldig, nålKlasse, interaktiv])
 
   if (!gyldig) return null
 

@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Icon from '../lib/icons'
 import { opdaterKunde } from '../lib/data'
-import { aktiviteterFor, rundeplan, plusMinutter } from '../lib/aktivitetsplan'
+import { hentTidslinjeRammer } from '../lib/activities'
+import { aktiviteterFor, bygProgram, plusMinutter, afviklingFor, standardGrupper } from '../lib/aktivitetsplan'
+import { AfviklingValg } from './AktivitetsVaelger'
 
 /**
  * Tidslinjen som VI bygger den — kun for os.
@@ -20,10 +22,17 @@ export default function TidslinjeRet({ kunde, adminKode, onRettet, onLuk }) {
   const akt = aktiviteterFor(kunde)
   const [rækker, setRækker] = useState(() => JSON.parse(JSON.stringify(kunde.program || [])))
   const [grupper, setGrupper] = useState(() =>
-    (kunde.grupper && kunde.grupper.length ? kunde.grupper : ['Gruppe 1', 'Gruppe 2']))
-  const [blok, setBlok] = useState(60)
+    (kunde.grupper && kunde.grupper.length ? kunde.grupper : standardGrupper(akt.length)))
+  const [afvikling, setAfvikling] = useState(() => afviklingFor(kunde))
+  const [rammer, setRammer] = useState({})
   const [gemmer, setGemmer] = useState(false)
   const [fejl, setFejl] = useState(null)
+
+  useEffect(() => {
+    let død = false
+    hentTidslinjeRammer().then(r => { if (!død) setRammer(r) })
+    return () => { død = true }
+  }, [])
 
   function ret(i, patch) {
     setRækker(r => r.map((x, j) => j === i ? { ...x, ...patch } : x))
@@ -47,21 +56,19 @@ export default function TidslinjeRet({ kunde, adminKode, onRettet, onLuk }) {
   function skiftForm(i) {
     setRækker(r => r.map((x, j) => {
       if (j !== i) return x
-      if (x.spor) { const { spor, ...rest } = x; return { ...rest, titel: rest.titel || '' } }
+      if (x.spor) { const { spor: _spor, ...rest } = x; return { ...rest, titel: rest.titel || '' } }
       return { ...x, titel: x.titel || 'Omgang', spor: grupper.map((g, n) => ({ gruppe: g, titel: akt[n]?.navn || '' })) }
     }))
   }
 
   function lavRundeplan() {
-    const plan = rundeplan({
-      aktiviteter: akt, grupper, start: kunde.startTime || '13.00', blokMinutter: Number(blok) || 60,
-    })
-    if (!plan.length) {
-      setFejl('Der skal være mindst to aktiviteter, to grupper og en starttid på kunden.')
+    const { program } = bygProgram({ aktiviteter: akt, grupper, start: kunde.startTime || '13.00', afvikling, rammer })
+    if (!program.length) {
+      setFejl('Der skal være mindst én aktivitet og en starttid på kunden.')
       return
     }
     setFejl(null)
-    setRækker(plan)
+    setRækker(program)
   }
 
   async function gem() {
@@ -73,7 +80,8 @@ export default function TidslinjeRet({ kunde, adminKode, onRettet, onLuk }) {
           ? { tid: r.tid || '', titel: r.titel || '', note: r.note || '',
               spor: r.spor.filter(s => (s.gruppe || '').trim() || (s.titel || '').trim()) }
           : { tid: r.tid || '', titel: r.titel || '', note: r.note || '' })
-      onRettet?.(await opdaterKunde(adminKode, kunde.code, { program: rene, grupper }))
+      // Gemt med hånden: fra nu af bygger vi den ikke om af os selv.
+      onRettet?.(await opdaterKunde(adminKode, kunde.code, { program: rene, grupper, afvikling, programAuto: false }))
       onLuk()
     } catch (e) {
       setFejl('Kunne ikke gemme: ' + e.message)
@@ -95,30 +103,29 @@ export default function TidslinjeRet({ kunde, adminKode, onRettet, onLuk }) {
         </div>
 
         <div className="sheet-body">
-          {akt.length > 1 && (
+          {akt.length > 0 && (
             <div className="block">
-              <h3>Lav rundeplan</h3>
+              <h3>Byg dagen forfra</h3>
               <p>
-                Deltagerne deles i {grupper.length} grupper, og de {akt.length} aktiviteter
-                kører samtidig i {Math.min(akt.length, grupper.length)} omgange — så alle
-                når det hele, og ingen venter.
+                Af starttiden {kunde.startTime || '13.00'} og aktiviteternes tider fra kataloget
+                ({akt.map(a => `${a.navn} ${a.minutter || '—'} min`).join(' · ')}).
               </p>
-              <div className="row2" style={{ marginTop: 10 }}>
-                <div className="field" style={{ marginBottom: 0 }}>
-                  <label htmlFor="tl-grupper">Grupper</label>
-                  <input id="tl-grupper" value={grupper.join(', ')}
-                         onChange={e => setGrupper(e.target.value.split(',').map(x => x.trim()).filter(Boolean))}
-                         placeholder="Gruppe 1, Gruppe 2" />
+              {akt.length > 1 && (
+                <div style={{ marginTop: 10 }}>
+                  <AfviklingValg værdi={afvikling} onÆndre={setAfvikling} />
+                  {afvikling === 'parallel' && (
+                    <div className="field" style={{ marginBottom: 0 }}>
+                      <label htmlFor="tl-grupper">Grupper</label>
+                      <input id="tl-grupper" value={grupper.join(', ')}
+                             onChange={e => setGrupper(e.target.value.split(',').map(x => x.trim()).filter(Boolean))}
+                             placeholder="Gruppe 1, Gruppe 2" />
+                    </div>
+                  )}
                 </div>
-                <div className="field" style={{ marginBottom: 0 }}>
-                  <label htmlFor="tl-blok">Minutter pr. omgang</label>
-                  <input id="tl-blok" type="number" inputMode="numeric" value={blok}
-                         onChange={e => setBlok(e.target.value)} />
-                </div>
-              </div>
+              )}
               <div className="actions" style={{ marginTop: 12 }}>
                 <button className="btn btn-primary" onClick={lavRundeplan}>
-                  <Icon name="clock" size={16} />Lav rundeplan fra {kunde.startTime || '13.00'}
+                  <Icon name="clock" size={16} />Byg tidslinjen
                 </button>
               </div>
               <p className="hint" style={{ marginTop: 8 }}>

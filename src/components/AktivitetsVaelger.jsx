@@ -1,5 +1,5 @@
 import Icon from '../lib/icons'
-import { MILJØER } from '../lib/aktivitetsplan'
+import { MILJØER, AFVIKLING } from '../lib/aktivitetsplan'
 
 /**
  * Vælg aktivitet — én eller flere — og sæt det, kunden skal vide om hver.
@@ -24,7 +24,13 @@ export default function AktivitetsVaelger({ aktiviteter, valgte, onÆndre, id })
 
   function tilføj(valgtId) {
     const a = (aktiviteter || []).find(x => x.id === valgtId)
-    if (a) onÆndre([...valgte, { id: a.id, navn: a.name || a.navn || '', miljø: '', note: '' }])
+    // Tiderne tages med fra kataloget NU: det er dem, tidslinjen bygges af,
+    // og de skal blive hos kunden, også hvis kataloget rettes i morgen.
+    if (a) onÆndre([...valgte, {
+      id: a.id, navn: a.name || a.navn || '', miljø: '', note: '', tekst: '',
+      minutter: a.activity_minutes || a.duration_minutes || null,
+      opsætning: a.setup_minutes || null,
+    }])
   }
   function ret(i, patch) {
     onÆndre(valgte.map((a, j) => j === i ? { ...a, ...patch } : a))
@@ -80,6 +86,30 @@ export default function AktivitetsVaelger({ aktiviteter, valgte, onÆndre, id })
         </option>
         {rest.map(a => <option key={a.id} value={a.id}>{a.name || a.navn}</option>)}
       </select>
+    </div>
+  )
+}
+
+/**
+ * »Hvordan afvikles de?« — spørgsmålet der dukker op, når der er valgt
+ * aktivitet nummer to. Samme knapper som inde/ude, så det ligner noget,
+ * man har set før.
+ */
+export function AfviklingValg({ værdi, onÆndre, id }) {
+  return (
+    <div className="field" id={id}>
+      <label>Hvordan afvikles de?</label>
+      <div className="afvikling-valg" role="group" aria-label="Hvordan afvikles aktiviteterne">
+        {AFVIKLING.map(a => (
+          <button type="button" key={a.værdi}
+                  className={'afvikling-knap' + (værdi === a.værdi ? ' valgt' : '')}
+                  aria-pressed={værdi === a.værdi}
+                  onClick={() => onÆndre(a.værdi)}>
+            <b>{a.kort}</b>
+            <span>{a.lang}</span>
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

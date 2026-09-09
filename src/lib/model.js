@@ -47,18 +47,27 @@ export function produktFor(kunde) {
   return navne.includes('teamtaste') ? 'taste' : 'track'
 }
 
+/* `skal: true` = det kan vi ikke afvikle dagen uden. De felter lyser orange,
+   til de er udfyldt; resten er rart at vide og står stille. */
 const INFO_FIELDS = [
-  { key: 'deltagere', label: 'Endeligt antal deltagere', type: 'text', ph: 'fx 48',
+  { key: 'deltagere', skal: true, label: 'Endeligt antal deltagere', type: 'text', ph: 'fx 48',
     hint: 'Vi låser tallet 5 dage før — små ændringer klarer vi på dagen.' },
   // TO valg, ikke tre. Det tredje (»I må gerne inddele os«) var i praksis
   // det samme som det andet, og et valg, man skal tænke over, er ét valg
   // for meget på en formular, folk udfylder på en telefon.
-  { key: 'hold', label: 'Teaminddeling', kort: 'Teams', type: 'select',
+  // Værdierne der GEMMES er korte og faste (gamle svar skal stadig passe);
+  // det kunden LÆSER, er sætningen med deres eget navn i — »{firma}«
+  // byttes ud, når knappen tegnes.
+  { key: 'hold', skal: true, label: 'Teaminddeling', kort: 'Teams', type: 'select',
     options: ['Vi blander selv teams', 'TeamBattle blander på dagen'],
-    hint: 'Et team er altid 4 personer, hvis ikke andet er aftalt. Blander I selv, sender vi en teamliste, I kan udfylde.' },
+    visning: {
+      'Vi blander selv teams': 'Vi – {firma} – blander selv teams af 4 personer og medbringer teamlisten',
+      'TeamBattle blander på dagen': 'TeamBattle blander teams på dagen',
+    },
+    hint: 'TeamBattle benytter, medmindre andet er aftalt, altid teams på 4 personer, da det skaber den bedste dynamik. Blander I selv, sender vi en teamliste, I kan udfylde.' },
   // Stedet er ét spørgsmål, ikke fem: enten et af vores steder, eller jeres
   // eget — og vælger I jeres eget, skal vi vide hvordan vi kommer ind.
-  { key: 'sted', label: 'Hvor skal det foregå?', type: 'venue' },
+  { key: 'sted', skal: true, label: 'Hvor skal det foregå?', type: 'venue' },
   // KUN når det er kundens eget sted. Er eventet på et af vores venues,
   // står forholdene i venue-systemet — og dét svar er rigtigere end et,
   // kunden gætter sig til om et sted, de også selv er gæst på.
@@ -68,13 +77,18 @@ const INFO_FIELDS = [
     kort: 'Særlige forhold', kunEgetSted: true,
     ph: 'Fx varer der skal køres ind, en elevator der er i stykker, en trappe uden gelænder, larm fra et andet møde',
     hint: 'Alt hvad der er værd at vide, før vi står der med udstyret.' },
-  { key: 'ankomst', label: 'Hvornår er I fremme?', kort: 'I er fremme', type: 'text', ph: 'fx 12.45',
-    hint: 'Vi står klar 45 minutter før jeres starttid.' },
+  { key: 'ankomst', skal: true, label: 'Hvornår er I realistisk klar til at starte eventet?', kort: 'Klar til start',
+    type: 'text', ph: 'fx 13.00',
+    hint: 'Vi ankommer 45–60 minutter før og sætter op på aftalt location.' },
+  // En sms når vi holder på pladsen: den går til kontaktpersonen på dagen.
+  { key: 'smsAnkomst', label: 'Ønsker I en sms, når vi ankommer?', kort: 'SMS ved ankomst', type: 'select',
+    options: ['Ja tak', 'Nej tak'],
+    hint: 'Vi sender den til kontaktpersonen på dagen, så I ved, at vi er der.' },
   // To kontakter, fordi det sjældent er den samme person: den ene planlægger
   // eventet med os i ugerne før, den anden står der på dagen.
-  { key: 'kontaktOpgave', label: 'Jeres kontaktperson for opgaven', type: 'kontakt',
+  { key: 'kontaktOpgave', skal: true, label: 'Jeres kontaktperson for opgaven', type: 'kontakt',
     hint: 'Den vi aftaler indhold, tider og pris med op til dagen.' },
-  { key: 'kontaktDagen', label: 'Kontaktperson på dagen', type: 'kontakt',
+  { key: 'kontaktDagen', skal: true, label: 'Kontaktperson på dagen', type: 'kontakt',
     hint: 'Den vi ringer til på selve dagen, hvis noget skal afklares.' },
   // KUN ved TeamTaste. Et løb gennem byen skal ikke spørge om allergier —
   // det er et spørgsmål der får kunden til at tro, at der bliver serveret
@@ -148,7 +162,7 @@ export const DEMO = {
   eventTitle: 'Byjagt i Aarhus', eventDate: '2026-09-26',
   startTime: '13.00', endTime: '16.30',
   sted: 'Dokk1, Hack Kampmanns Plads 2, 8000 Aarhus C',
-  modested: 'Trappen foran hovedindgangen',
+  modested: 'Trappen foran hovedindgangen', stedLat: 56.1533, stedLon: 10.2138,
   parkering: 'Salling P-hus, 4 min. gang',
   deltagere: 48, pris: 23400, betalt: false, faktura: 'EAN 5798009812345',
   beskrivelse: 'Et team-mod-team løb gennem Aarhus midtby. I får hver en tablet, en rute og 22 opgaver undervejs — fotoopgaver, gåder og små udfordringer, der kræver at I taler sammen. Der er ingen fysiske krav ud over almindelig gang.',
@@ -179,7 +193,34 @@ export function tomKunde(felter) {
     deltagere: null, pris: null, betalt: false, faktura: '',
     beskrivelse: '', inkluderet: [],
     gamemaster: { navn: '', rolle: 'Gamemaster på jeres event', telefon: '', email: '' },
-    program: [], info: {},
+    program: [], programAuto: false, afvikling: 'parallel', info: {},
     ...felter,
   }
 }
+
+/**
+ * Det praktiske på stedet: parkering, toiletter, ly for regn.
+ *
+ * Der står ALTID noget — og det, der står, er det ærlige svar. På et af
+ * vores steder er parkering og toiletter et ja, på stedet; regn er et nej,
+ * til nogen har aftalt plads indendørs. Vi kan skrive hvert felt om på
+ * kunden, og så vinder dét.
+ */
+export const PRAKTISK = [
+  { key: 'parkering', label: 'Parkering' },
+  { key: 'toiletter', label: 'Toiletter' },
+  { key: 'regn', label: 'Ly for regn' },
+]
+export function praktiskFor(kunde, venue) {
+  const egen = (kunde.praktisk && typeof kunde.praktisk === 'object') ? kunde.praktisk : {}
+  const navn = venue ? venue.name : ''
+  const standard = {
+    parkering: navn ? `Ja, på ${navn}` : (kunde.parkering || ''),
+    toiletter: navn ? `Ja, på ${navn}` : 'Ved mødestedet',
+    regn: `Nej – der skal aftales plads indendørs${navn ? ' med ' + navn : ''}, hvis vi skal være sikre`,
+  }
+  const ud = {}
+  for (const f of PRAKTISK) ud[f.key] = String(egen[f.key] || '').trim() || standard[f.key]
+  return ud
+}
+

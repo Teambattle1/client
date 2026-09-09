@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Icon from '../lib/icons'
-import { SECTIONS, infoFieldsFor } from '../lib/model'
+import { SECTIONS, infoFieldsFor, feltUdfyldt, PRAKTISK, praktiskFor } from '../lib/model'
 import { kr, initialer } from '../lib/format'
 import { hentVenue, venueAdresse, konferenceKontakt, ankomstNote } from '../lib/venues'
-import { hentAktivitet, hentAktiviteter, aktivitetTekst, varighed } from '../lib/activities'
-import { aktiviteterFor, aktivitetsFelter, programRækker, miljøTekst } from '../lib/aktivitetsplan'
-import AktivitetsVaelger from './AktivitetsVaelger'
+import { hentAktivitet, hentAktiviteter, hentTidslinjeRammer, aktivitetTekst, grundtekst, gemGrundtekst, varighed } from '../lib/activities'
+import { aktiviteterFor, aktivitetsFelter, programRækker, programFelter, afviklingFor, miljøTekst } from '../lib/aktivitetsplan'
+import AktivitetsVaelger, { AfviklingValg } from './AktivitetsVaelger'
 import TidslinjeRet from './TidslinjeRet'
 import StedVaelger from './StedVaelger'
 import { hentMedarbejdere, planlæggerGrupper, somKontakt } from '../lib/crew'
@@ -13,6 +13,7 @@ import { opdaterKunde } from '../lib/data'
 import Showtime from './Showtime'
 import VenueVaelger from './VenueVaelger'
 import MiniKort from './MiniKort'
+import { slåOpCvr, fakturaUdfyldt } from '../lib/cvr'
 
 /* Arket der åbner, når kunden trykker på en af knapperne. */
 
@@ -31,7 +32,7 @@ export default function PortalSheet({ sektion, kunde, info, gemStatus, onInfo, o
     info: <Info felter={infoFieldsFor(kunde)} info={info} gemStatus={gemStatus} onInfo={onInfo}
                  admin={!!adminKode} kunde={kunde} />,
     location: <Location kunde={kunde} info={info} adminKode={adminKode} onRettet={onKundeRettet} />,
-    okonomi: <Okonomi kunde={kunde} />,
+    okonomi: <Okonomi kunde={kunde} info={info} gemStatus={gemStatus} onInfo={onInfo} adminKode={adminKode} onRettet={onKundeRettet} />,
     tidslinje: <Tidslinje kunde={kunde} adminKode={adminKode} onRettet={onKundeRettet} />,
     kontakt: <Kontakter kunde={kunde} info={info} adminKode={adminKode} onRettet={onKundeRettet} />,
     showtime: <Showtime kunde={kunde} adminKode={adminKode} onRettet={onKundeRettet} onLuk={onLuk} />,
@@ -80,7 +81,10 @@ function Opgave({ kunde, adminKode, onRettet }) {
       )}
 
       {liste.length
-        ? liste.map((a, i) => <EnAktivitet key={a.id || i} valgt={a} kunde={kunde} nummer={liste.length > 1 ? i + 1 : 0} />)
+        ? liste.map((a, i) => (
+            <EnAktivitet key={a.id || i} valgt={a} kunde={kunde} nummer={liste.length > 1 ? i + 1 : 0}
+                         adminKode={adminKode} onRettet={onRettet} />
+          ))
         : (
           <p className="lede">
             Beskrivelsen af jeres aktivitet lægges ind her, når den er på plads.
@@ -113,8 +117,9 @@ function Opgave({ kunde, adminKode, onRettet }) {
  * det holder fejlen lokal: svarer kataloget ikke på den ene, står den anden
  * der stadig med sit billede og sin tekst.
  */
-function EnAktivitet({ valgt, kunde, nummer }) {
+function EnAktivitet({ valgt, kunde, nummer, adminKode, onRettet }) {
   const [akt, setAkt] = useState(null)
+  const [retter, setRetter] = useState(false)
 
   useEffect(() => {
     if (!valgt.id) return
@@ -126,7 +131,9 @@ function EnAktivitet({ valgt, kunde, nummer }) {
   }, [valgt.id])
 
   const navn = (akt && akt.name) || valgt.navn || kunde.eventTitle || ''
-  const tekst = aktivitetTekst(akt, nummer <= 1 ? kunde.beskrivelse : '')
+  // Kundens egen tekst til NETOP denne aktivitet vinder; den gamle
+  // fælles beskrivelse gælder stadig for den første, som før.
+  const tekst = aktivitetTekst(akt, valgt.tekst || (nummer <= 1 ? kunde.beskrivelse : ''))
   const spilletid = varighed(akt && (akt.activity_minutes || akt.duration_minutes))
   const spænd = akt && (akt.min_participants || akt.max_participants)
     ? [akt.min_participants, akt.max_participants].filter(Boolean).join('–') + ' deltagere'
@@ -152,9 +159,29 @@ function EnAktivitet({ valgt, kunde, nummer }) {
           man måske ikke læser til ende. */}
       {valgt.note && <p className="akt-note-vis">{valgt.note}</p>}
 
-      <p className="lede" style={{ marginBottom: 12 }}>
+      <p className="lede" style={{ marginBottom: 12, whiteSpace: 'pre-wrap' }}>
         {tekst || 'Beskrivelsen lægges ind her, når den er på plads.'}
       </p>
+
+      {adminKode && !retter && (
+        <div className="actions" style={{ marginBottom: 14 }}>
+          <button className="btn btn-quiet" onClick={() => setRetter(true)}>
+            <Icon name="pen" size={15} color="currentColor" />
+            {valgt.tekst ? 'Ret teksten' : 'Skriv tekst til kunden'}
+          </button>
+          {valgt.tekst
+            ? <span className="akt-tekst-kilde" style={{ alignSelf: 'center' }}>Kundens egen tekst</span>
+            : grundtekst(akt)
+              ? <span className="akt-tekst-kilde" style={{ alignSelf: 'center' }}>Grundtekst fra kataloget</span>
+              : null}
+        </div>
+      )}
+      {retter && (
+        <RetAktivitetsTekst valgt={valgt} akt={akt} kunde={kunde} adminKode={adminKode}
+                            onRettet={k => { onRettet?.(k); setRetter(false) }}
+                            onGrundtekst={t => setAkt(a => a ? { ...a, long_description: t } : a)}
+                            onLuk={() => setRetter(false)} />
+      )}
 
       {/* Deltagerspændet hører til AKTIVITETEN, ikke til dagen: to
           aktiviteter kan have hvert sit, og et enkelt tal nederst kunne
@@ -179,10 +206,81 @@ function EnAktivitet({ valgt, kunde, nummer }) {
   )
 }
 
+/**
+ * Teksten om aktiviteten — kun for os.
+ *
+ * GRUNDTEKSTEN ligger i EventFlows katalog og er den, alle kunder ser.
+ * »Kopiér grundteksten« lægger den over på kunden, hvor den kan rettes
+ * til netop deres dag — uden at grundteksten røres. Skal grundteksten selv
+ * rettes, er der en knap til det, og den siger tydeligt, at det gælder
+ * alle.
+ */
+function RetAktivitetsTekst({ valgt, akt, kunde, adminKode, onRettet, onGrundtekst, onLuk }) {
+  const grund = grundtekst(akt)
+  const [tekst, setTekst] = useState(valgt.tekst || '')
+  const [gemmer, setGemmer] = useState(false)
+  const [fejl, setFejl] = useState(null)
+
+  async function gemHosKunden() {
+    setGemmer(true); setFejl(null)
+    try {
+      const liste = aktiviteterFor(kunde).map(a => a.id === valgt.id ? { ...a, tekst } : a)
+      onRettet?.(await opdaterKunde(adminKode, kunde.code, aktivitetsFelter(liste)))
+    } catch (e) {
+      setFejl('Kunne ikke gemme: ' + e.message); setGemmer(false)
+    }
+  }
+
+  async function gemSomGrund() {
+    if (!valgt.id) return
+    if (!window.confirm('Det her retter grundteksten i kataloget — for ALLE kunder med ' + (valgt.navn || 'aktiviteten') + '. Fortsæt?')) return
+    setGemmer(true); setFejl(null)
+    try {
+      await gemGrundtekst(valgt.id, tekst)
+      onGrundtekst?.(tekst)
+      // Kundens egen kopi fjernes: nu ER teksten grundteksten.
+      const liste = aktiviteterFor(kunde).map(a => a.id === valgt.id ? { ...a, tekst: '' } : a)
+      onRettet?.(await opdaterKunde(adminKode, kunde.code, aktivitetsFelter(liste)))
+    } catch (e) {
+      setFejl('Kunne ikke gemme: ' + e.message); setGemmer(false)
+    }
+  }
+
+  return (
+    <div className="akt-tekst-ret">
+      <span className="akt-tekst-kilde">{tekst ? 'Kundens egen tekst' : 'Ingen egen tekst endnu'}</span>
+      <textarea value={tekst} onChange={e => setTekst(e.target.value)}
+                placeholder={grund ? 'Tryk »Kopiér grundteksten« og ret i den herunder.' : 'Der er ingen grundtekst i kataloget endnu. Skriv den her — og gem den som grundtekst, hvis den skal gælde alle.'}
+                aria-label={'Tekst om ' + (valgt.navn || 'aktiviteten')} />
+      {fejl && <p className="hint" style={{ color: 'var(--red)' }}>{fejl}</p>}
+      <div className="actions">
+        {grund && (
+          <button className="btn btn-quiet" onClick={() => setTekst(grund)} disabled={gemmer}>
+            <Icon name="copy" size={15} color="currentColor" />Kopiér grundteksten
+          </button>
+        )}
+        <button className="btn btn-primary" onClick={gemHosKunden} disabled={gemmer}>
+          <Icon name="check" size={16} />{gemmer ? 'Gemmer …' : 'Gem for ' + (kunde.firma || 'kunden')}
+        </button>
+        <button className="btn btn-quiet" onClick={gemSomGrund} disabled={gemmer || !tekst.trim() || !valgt.id}>
+          Gem som grundtekst (alle kunder)
+        </button>
+        <button className="btn btn-quiet" onClick={onLuk} disabled={gemmer}>Fortryd</button>
+      </div>
+      <p className="hint">
+        Det du gemmer for kunden, ser kun de. Grundteksten ligger i EventFlows katalog og bruges,
+        hvor kunden ikke har sin egen. Tøm feltet og gem, så er kunden tilbage på grundteksten.
+      </p>
+    </div>
+  )
+}
+
 /** Ret listen bagefter — kun for os. Samme vælger som ved oprettelsen. */
 function RetAktiviteter({ kunde, adminKode, onRettet }) {
   const [katalog, setKatalog] = useState([])
   const [valgte, setValgte] = useState(() => aktiviteterFor(kunde))
+  const [afvikling, setAfvikling] = useState(() => afviklingFor(kunde))
+  const [rammer, setRammer] = useState({})
   const [gemmer, setGemmer] = useState(false)
   const [fejl, setFejl] = useState(null)
   const [kvittering, setKvittering] = useState(null)
@@ -190,14 +288,21 @@ function RetAktiviteter({ kunde, adminKode, onRettet }) {
   useEffect(() => {
     let død = false
     hentAktiviteter().then(a => { if (!død) setKatalog(a) }).catch(() => setFejl('Kataloget kunne ikke hentes.'))
+    hentTidslinjeRammer().then(r => { if (!død) setRammer(r) })
     return () => { død = true }
   }, [])
+
+  // Tidslinjen bygges om, når aktiviteterne ændrer sig — men KUN så længe
+  // den er vores eget gæt. Har nogen rettet i den med hånden, står den.
+  const bygOm = !!kunde.programAuto || !(kunde.program || []).length
 
   async function gem() {
     setGemmer(true); setFejl(null); setKvittering(null)
     try {
-      onRettet?.(await opdaterKunde(adminKode, kunde.code, aktivitetsFelter(valgte)))
-      setKvittering('Gemt')
+      const felter = { ...aktivitetsFelter(valgte), afvikling }
+      if (bygOm) Object.assign(felter, programFelter({ ...kunde, ...felter }, { rammer }))
+      onRettet?.(await opdaterKunde(adminKode, kunde.code, felter))
+      setKvittering(bygOm && felter.program ? 'Gemt — tidslinjen er bygget om' : 'Gemt')
       setTimeout(() => setKvittering(null), 2600)
     } catch (e) {
       setFejl('Kunne ikke gemme: ' + e.message)
@@ -208,6 +313,7 @@ function RetAktiviteter({ kunde, adminKode, onRettet }) {
     <div className="block" style={{ marginTop: 18 }}>
       <h3>Ret aktiviteterne (kun os)</h3>
       <AktivitetsVaelger aktiviteter={katalog} valgte={valgte} onÆndre={setValgte} />
+      {valgte.length > 1 && <AfviklingValg værdi={afvikling} onÆndre={setAfvikling} />}
       {fejl && <p style={{ color: 'var(--red)', fontSize: 14, marginTop: 8 }}>{fejl}</p>}
       {kvittering && <p style={{ color: 'var(--green)', fontSize: 14, marginTop: 8 }}>{kvittering}</p>}
       <div className="actions" style={{ marginTop: 10 }}>
@@ -216,7 +322,9 @@ function RetAktiviteter({ kunde, adminKode, onRettet }) {
         </button>
       </div>
       <p className="hint" style={{ marginTop: 8 }}>
-        Hver aktivitet får sit eget showtime, og tidslinjen kan køre dem samtidig i grupper.
+        {bygOm
+          ? 'Tidslinjen bygges om af sig selv, når du gemmer — af starttiden og aktiviteternes tider fra kataloget.'
+          : 'Tidslinjen er rettet i hånden, så den står som den er. Byg den om under »Tidslinje«, hvis dagen skal laves forfra.'}
       </p>
     </div>
   )
@@ -237,29 +345,32 @@ function Info({ felter, info, gemStatus, onInfo, admin, kunde }) {
         Jo før vi har det her, jo mindre skal I tage stilling til på dagen.
         Det gemmer sig selv, og I kan komme tilbage senere.
       </p>
-      {felter.map(f => (
-        <div className="field" key={f.key}>
+      {felter.map(f => {
+        const mangler = !!f.skal && !feltUdfyldt(f, info[f.key], kunde)
+        return (
+        <div className={'field' + (mangler ? ' mangler' : '')} key={f.key}>
           {f.type === 'venue'
-            ? <span className="felt-titel">{f.label}</span>
-            : <label htmlFor={'f-' + f.key}>{f.label}</label>}
+            ? <span className="felt-titel">{f.label}{mangler && <em className="skal-mærke">Skal udfyldes</em>}</span>
+            : <label htmlFor={'f-' + f.key}>{f.label}{mangler && <em className="skal-mærke">Skal udfyldes</em>}</label>}
           {f.type === 'venue' ? (
             <VenueVaelger værdi={info[f.key]} onÆndre={v => onInfo(f.key, v)} admin={admin}
                           voresSted={{ sted: kunde.sted || '', lat: kunde.stedLat ?? null, lon: kunde.stedLon ?? null,
-                                       venueId: kunde.venueId || '' }} />
+                                       venueId: kunde.venueId || '', modested: kunde.modested || '' }} />
           ) : f.type === 'kontakt' ? (
             <KontaktFelt k={info[f.key]} onÆndre={v => onInfo(f.key, v)} navnId={'f-' + f.key} />
           ) : f.type === 'textarea' ? (
             <textarea id={'f-' + f.key} value={info[f.key] || ''} placeholder={f.ph || ''}
                       onChange={e => onInfo(f.key, e.target.value)} />
           ) : f.type === 'select' ? (
-            <Valg felt={f} værdi={info[f.key] || ''} onÆndre={v => onInfo(f.key, v)} />
+            <Valg felt={f} værdi={info[f.key] || ''} onÆndre={v => onInfo(f.key, v)} firma={kunde.firma} />
           ) : (
             <input id={'f-' + f.key} type="text" value={info[f.key] || ''} placeholder={f.ph || ''}
                    onChange={e => onInfo(f.key, e.target.value)} />
           )}
           {f.hint && <p className="hint">{f.hint}</p>}
         </div>
-      ))}
+        )
+      })}
       <div className="saved">
         {gemStatus === 'gemmer' && <span style={{ color: 'var(--muted)', fontWeight: 500 }}>Gemmer …</span>}
         {gemStatus === 'gemt' && <><Icon name="check" size={16} color="currentColor" />Gemt</>}
@@ -280,9 +391,10 @@ function Info({ felter, info, gemStatus, onInfo, admin, kunde }) {
  * Et gammelt svar, der ikke længere er en mulighed, får sin egen knap.
  * Ellers ville kunden se et tomt valg og tro, de aldrig fik svaret.
  */
-function Valg({ felt, værdi, onÆndre }) {
+function Valg({ felt, værdi, onÆndre, firma }) {
   const muligheder = [...felt.options]
   if (værdi && !muligheder.includes(værdi)) muligheder.push(værdi)
+  const tekst = o => String((felt.visning && felt.visning[o]) || o).replace('{firma}', String(firma || '').trim() || 'I')
 
   return (
     <div className="valg-knapper" role="radiogroup" aria-label={felt.label} id={'f-' + felt.key}>
@@ -295,7 +407,7 @@ function Valg({ felt, værdi, onÆndre }) {
           onClick={() => onÆndre(værdi === o ? '' : o)}
         >
           <span className="valg-prik" aria-hidden="true" />
-          {o}
+          {tekst(o)}
         </button>
       ))}
     </div>
@@ -359,7 +471,6 @@ function Location({ kunde, info, adminKode, onRettet }) {
   // gør, at kortet er der fra dag ét — også før kunden har svaret på noget.
   const lat = venue ? venue.lat : (egen ? svar.lat : (kunde.stedLat ?? null))
   const lon = venue ? venue.lon : (egen ? svar.lon : (kunde.stedLon ?? null))
-  const konsulent = venue ? konferenceKontakt(venue) : null
   const logistik = (info && info.logistik) || ''
 
   return (
@@ -367,10 +478,18 @@ function Location({ kunde, info, adminKode, onRettet }) {
       <div className="block">
         <h3>{venue ? venue.name : egen ? 'Jeres location' : 'Mødested'}</h3>
         <p>{adresse || 'Stedet er ikke sat endnu — vælg det under »info fra jer«.'}</p>
-        {!egen && !venue && kunde.modested && (
-          <p style={{ marginTop: 8, color: 'var(--ink)', fontWeight: 600 }}>{kunde.modested}</p>
+        {/* Mødestedet PÅ stedet — »lokale A«, »ved receptionen« — gælder
+            også, når stedet er et af vores: det er dét, der skal stå. */}
+        {!egen && kunde.modested && (
+          <p style={{ marginTop: 8, color: 'var(--ink)', fontWeight: 600 }}>Vi mødes: {kunde.modested}</p>
         )}
         <MiniKort lat={lat} lon={lon} højde={170} />
+        {(lat || lon) && (
+          <p className="kort-note">
+            Vi vil – efter aftale med location – være på det røde spot, men aftal evt.
+            nærmere med jeres instruktør.
+          </p>
+        )}
       </div>
 
       {venueFejl && (
@@ -408,11 +527,9 @@ function Location({ kunde, info, adminKode, onRettet }) {
         </p>
       )}
 
-      {!egen && !venue && (
+      {!egen && (
         <dl style={{ margin: '0 0 16px' }}>
-          <Rk t="Parkering" v={kunde.parkering || '—'} />
-          <Rk t="Toiletter" v="Ved mødestedet" />
-          <Rk t="Ly for regn" v="Ja, indendørs samlingssted" />
+          {PRAKTISK.map(f => <Rk key={f.key} t={f.label} v={praktiskFor(kunde, venue)[f.key] || '—'} />)}
         </dl>
       )}
 
@@ -425,17 +542,21 @@ function Location({ kunde, info, adminKode, onRettet }) {
         </div>
       )}
 
-      {adminKode && <RetSted kunde={kunde} adminKode={adminKode} onRettet={onRettet} />}
+      {adminKode && <RetSted kunde={kunde} adminKode={adminKode} onRettet={onRettet} venue={venue} />}
     </>
   )
 }
 
 /** Sæt eller ret stedet — kun for os. Samme opslag som ved oprettelsen. */
-function RetSted({ kunde, adminKode, onRettet }) {
+function RetSted({ kunde, adminKode, onRettet, venue }) {
   const [værdi, setVærdi] = useState({
     sted: kunde.sted || '', venueId: kunde.venueId || '',
     lat: kunde.stedLat ?? null, lon: kunde.stedLon ?? null,
   })
+  const [modested, setModested] = useState(kunde.modested || '')
+  // Felterne står udfyldt med det, kunden ser lige nu — så retter man i
+  // dét, frem for at skrive det hele forfra.
+  const [praktisk, setPraktisk] = useState(() => praktiskFor(kunde, venue))
   const [gemmer, setGemmer] = useState(false)
   const [fejl, setFejl] = useState(null)
   const [kvittering, setKvittering] = useState(null)
@@ -443,9 +564,13 @@ function RetSted({ kunde, adminKode, onRettet }) {
   async function gem() {
     setGemmer(true); setFejl(null); setKvittering(null)
     try {
+      const rene = {}
+      for (const f of PRAKTISK) rene[f.key] = String(praktisk[f.key] || '').trim()
       onRettet?.(await opdaterKunde(adminKode, kunde.code, {
         sted: værdi.sted || '', venueId: værdi.venueId || '',
         stedLat: værdi.lat ?? null, stedLon: værdi.lon ?? null,
+        modested: modested.trim(),
+        praktisk: rene,
       }))
       setKvittering('Gemt')
       setTimeout(() => setKvittering(null), 2600)
@@ -458,6 +583,29 @@ function RetSted({ kunde, adminKode, onRettet }) {
     <div className="block" style={{ marginTop: 18 }}>
       <h3>Ret stedet (kun os)</h3>
       <StedVaelger værdi={værdi} onÆndre={setVærdi} />
+      {værdi.sted && !værdi.venueId && (
+        <p className="hint" style={{ marginTop: 8, color: 'var(--gold)' }}>
+          Stedet står som en adresse, ikke som et af VORES steder. Så får kunden spørgsmålene om
+          adgang og ankomst — vælg stedet fra listen (»Slå op«), hvis det er et af vores.
+        </p>
+      )}
+      <div className="field" style={{ marginTop: 12, marginBottom: 0 }}>
+        <label htmlFor="rs-modested">Hvor på stedet mødes vi?</label>
+        <input id="rs-modested" value={modested} onChange={e => setModested(e.target.value)}
+               placeholder="Fx lokale A · ved receptionen · i parken bag hovedbygningen" autoComplete="off" />
+        <p className="hint">Kunden ser det under »Hvor skal det foregå?« og under Location. Bogstav eller lokale, hvis stedet bruger det.</p>
+      </div>
+      <div className="sec-label" style={{ marginTop: 14, marginBottom: 6 }}>Det praktiske på stedet</div>
+      {PRAKTISK.map(f => (
+        <div className="field" key={f.key} style={{ marginBottom: 10 }}>
+          <label htmlFor={'rs-' + f.key}>{f.label}</label>
+          <input id={'rs-' + f.key} value={praktisk[f.key] || ''} autoComplete="off"
+                 onChange={e => setPraktisk(x => ({ ...x, [f.key]: e.target.value }))} />
+        </div>
+      ))}
+      <p className="hint" style={{ marginTop: -2, marginBottom: 8 }}>
+        Står udfyldt med det, kunden ser nu. Ret i det, der ikke passer — fx »Ja, i Ridesalen (C)« under ly for regn, når det er aftalt.
+      </p>
       {fejl && <p style={{ color: 'var(--red)', fontSize: 14, marginTop: 8 }}>{fejl}</p>}
       {kvittering && <p style={{ color: 'var(--green)', fontSize: 14, marginTop: 8 }}>{kvittering}</p>}
       <div className="actions" style={{ marginTop: 10 }}>
@@ -466,16 +614,36 @@ function RetSted({ kunde, adminKode, onRettet }) {
         </button>
       </div>
       <p className="hint" style={{ marginTop: 8 }}>
+        Er stedet et af vores, skjules kundens egne spørgsmål om adgang — stedets egen ankomst-info står der i stedet.
         Vælger kunden selv et sted under »info fra jer«, er det deres valg, der vises.
       </p>
     </div>
   )
 }
 
-function Okonomi({ kunde }) {
+/**
+ * Økonomi — det kunden skal vide, og det ENE de skal gøre: fortælle os
+ * hvem fakturaen skal til.
+ *
+ * Momsen regnes ud og vises, så tallet på fakturaen ikke kommer som en
+ * overraskelse. Prisen, momssatsen og betalingsfristen sætter VI (nederst,
+ * kun for os); fakturaoplysningerne skriver kunden selv, og de gemmer sig
+ * løbende ligesom resten af »info fra jer«.
+ */
+export function økonomiFor(kunde) {
   const pris = Number(kunde.pris || 0)
-  const stk = Number(kunde.deltagere || 0)
-  const pr = stk > 0 && pris > 0 ? Math.round(pris / stk) : null
+  const momsPct = Number.isFinite(Number(kunde.momsPct)) && kunde.momsPct !== '' && kunde.momsPct !== null ? Number(kunde.momsPct) : 25
+  const moms = Math.round(pris * momsPct) / 100
+  const dage = Number(kunde.betalingsdage) > 0 ? Number(kunde.betalingsdage) : 8
+  return { pris, momsPct, moms, total: pris + moms, dage }
+}
+
+function Okonomi({ kunde, info, gemStatus, onInfo, adminKode, onRettet }) {
+  const ø = økonomiFor(kunde)
+  const fakt = (info && info.faktura && typeof info.faktura === 'object') ? info.faktura : {}
+  const udfyldt = fakturaUdfyldt(fakt)
+  const [åben, setÅben] = useState(false)
+
   return (
     <>
       <div style={{ marginBottom: 16 }}>
@@ -484,17 +652,211 @@ function Okonomi({ kunde }) {
           : <span className="pill pill-gold">Faktura sendt</span>}
       </div>
       <dl style={{ margin: 0 }}>
-        <Rk t={`Aktivitet, ${kunde.deltagere || '—'} deltagere`} v={kr(pris)} />
-        {pr && <Rk t="Pris pr. deltager" v={kr(pr)} />}
-        <Rk t="Moms" v="Tillægges" />
-        <Rk t="Betaling" v="8 dage netto" />
-        <Rk t="Faktureres til" v={kunde.faktura || '—'} />
+        <Rk t={`Aktivitet, ${kunde.deltagere || '—'} deltagere`} v={kr(ø.pris)} />
+        <Rk t={`Moms ${ø.momsPct} %`} v={kr(ø.moms)} />
+        <Rk t="Betaling" v={`${ø.dage} dage netto`} />
       </dl>
-      <div className="total"><span>I alt ekskl. moms</span><b>{kr(pris)}</b></div>
-      <p className="note">
-        Ændrer antallet af deltagere sig mere end 10 %, retter vi fakturaen efter det endelige tal.
+      <div className="total"><span>I alt inkl. moms</span><b>{kr(ø.total)}</b></div>
+      <p className="note" style={{ marginBottom: 14 }}>
+        {kr(ø.pris)} ekskl. moms. Ændrer antallet af deltagere sig mere end 10 %, retter vi fakturaen efter det endelige tal.
       </p>
+
+      {/* Faktureres til: det ene kunden skal gøre her. Mangler det, LYSER
+          det — det er dét, der gør, at fakturaen kommer det rigtige sted hen. */}
+      <div className={'block' + (!udfyldt && !åben ? ' mangler-blok' : '')}>
+        <h3>Faktureres til{!udfyldt && <em className="skal-mærke">Mangler</em>}</h3>
+        {udfyldt && !åben ? (
+          <>
+            <p style={{ color: 'var(--ink)' }}>
+              <b>{fakt.firma || '—'}</b>{fakt.adresse ? <><br />{fakt.adresse}</> : null}
+            </p>
+            <dl style={{ margin: '8px 0 0' }}>
+              {fakt.cvr && <Rk t="CVR" v={fakt.cvr} />}
+              {fakt.ean && <Rk t="EAN" v={fakt.ean} />}
+              {fakt.po && <Rk t="PO / rekvisition" v={fakt.po} />}
+              {fakt.mail && <Rk t="Fakturamail" v={fakt.mail} />}
+            </dl>
+            <div className="actions" style={{ marginTop: 10 }}>
+              <button className="btn btn-quiet" onClick={() => setÅben(true)}>
+                <Icon name="pen" size={15} color="currentColor" />Ret oplysningerne
+              </button>
+            </div>
+          </>
+        ) : åben ? (
+          <FakturaForm fakt={fakt} gemStatus={gemStatus} onÆndre={v => onInfo('faktura', v)} onLuk={() => setÅben(false)} />
+        ) : (
+          <>
+            <p>Vi mangler at vide, hvem fakturaen skal sendes til — CVR eller EAN, og en mail den kan sendes til.</p>
+            <div className="actions" style={{ marginTop: 10 }}>
+              <button className="btn btn-primary" onClick={() => setÅben(true)}>
+                <Icon name="form" size={17} />Udfyld fakturaoplysninger
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="block">
+        <h3>Betalingsbetingelser</h3>
+        <p style={{ color: 'var(--ink)' }}>
+          Vi har <b>{ø.dage} dages betalingsfrist</b> og håber, I vil respektere det — det er et lille firma, og
+          det betyder meget for os. Er det svært i jeres system, er betaling med kreditkort en mulighed,
+          hvis det aftales <b>før</b> opgaven.
+        </p>
+      </div>
+
+      {adminKode && <RetOkonomi kunde={kunde} adminKode={adminKode} onRettet={onRettet} />}
     </>
+  )
+}
+
+/**
+ * Fakturaoplysningerne — kundens egne.
+ *
+ * CVR slås op, når der står otte cifre, og fylder navn og adresse ud. Det
+ * er en hjælp, ikke en sandhed: registret staver ikke altid som fakturaen
+ * skal, så alt kan rettes bagefter. Gemmer løbende, ligesom »info fra jer«.
+ */
+function FakturaForm({ fakt, gemStatus, onÆndre, onLuk }) {
+  const [f, setF] = useState({ cvr: '', firma: '', adresse: '', ean: '', po: '', mail: '', ...fakt })
+  const [slårOp, setSlårOp] = useState(false)
+  const [opslag, setOpslag] = useState(null)   // 'fundet' | 'ikke' | null
+  const afbryd = useRef(null)
+
+  useEffect(() => () => afbryd.current?.abort(), [])
+
+  function sæt(patch) {
+    const næste = { ...f, ...patch }
+    setF(næste)
+    onÆndre(næste)
+  }
+
+  async function skrivCvr(v) {
+    const rent = v.replace(/\D/g, '').slice(0, 8)
+    sæt({ cvr: rent })
+    setOpslag(null)
+    afbryd.current?.abort()
+    if (rent.length !== 8) return
+    const ctrl = new AbortController()
+    afbryd.current = ctrl
+    setSlårOp(true)
+    const svar = await slåOpCvr(rent, ctrl.signal)
+    if (ctrl.signal.aborted) return
+    setSlårOp(false)
+    if (svar) {
+      setOpslag('fundet')
+      // Kun tomme felter fyldes: har de allerede skrevet noget, er det deres.
+      sæt({ cvr: rent, firma: f.firma || svar.navn, adresse: f.adresse || svar.adresse, mail: f.mail || svar.mail })
+    } else {
+      setOpslag('ikke')
+    }
+  }
+
+  return (
+    <div>
+      <div className="field">
+        <label htmlFor="fa-cvr">CVR-nummer</label>
+        <input id="fa-cvr" inputMode="numeric" value={f.cvr} onChange={e => skrivCvr(e.target.value)} placeholder="8 cifre" autoComplete="off" />
+        <p className="hint">
+          {slårOp ? 'Slår op i CVR …'
+            : opslag === 'fundet' ? 'Fundet — tjek at navn og adresse passer, og ret hvis ikke.'
+            : opslag === 'ikke' ? 'Vi kunne ikke slå nummeret op. Skriv navn og adresse selv.'
+            : 'Vi slår nummeret op og udfylder navn og adresse for jer.'}
+        </p>
+      </div>
+      <div className="field">
+        <label htmlFor="fa-firma">Firmanavn på fakturaen</label>
+        <input id="fa-firma" value={f.firma} onChange={e => sæt({ firma: e.target.value })} autoComplete="organization" />
+      </div>
+      <div className="field">
+        <label htmlFor="fa-adresse">Adresse</label>
+        <input id="fa-adresse" value={f.adresse} onChange={e => sæt({ adresse: e.target.value })} autoComplete="off" />
+      </div>
+      <div className="row2">
+        <div className="field">
+          <label htmlFor="fa-ean">EAN-nummer</label>
+          <input id="fa-ean" inputMode="numeric" value={f.ean} onChange={e => sæt({ ean: e.target.value.replace(/\D/g, '').slice(0, 13) })} placeholder="Kun offentlige" autoComplete="off" />
+        </div>
+        <div className="field">
+          <label htmlFor="fa-po">PO / rekvisitionsnr.</label>
+          <input id="fa-po" value={f.po} onChange={e => sæt({ po: e.target.value })} placeholder="Hvis I bruger det" autoComplete="off" />
+        </div>
+      </div>
+      <div className="field">
+        <label htmlFor="fa-mail">Fakturamail</label>
+        <input id="fa-mail" type="email" value={f.mail} onChange={e => sæt({ mail: e.target.value })} placeholder="faktura@firma.dk" autoComplete="email" />
+        <p className="hint">Den adresse fakturaen skal sendes til — tit en anden end jeres egen.</p>
+      </div>
+      <div className="actions" style={{ alignItems: 'center' }}>
+        <button className="btn btn-primary" onClick={onLuk}><Icon name="check" size={16} />Færdig</button>
+        <span className="saved">
+          {gemStatus === 'gemmer' ? 'Gemmer …' : gemStatus === 'gemt' ? <><Icon name="check" size={14} color="currentColor" />Gemt</> : gemStatus === 'fejl' ? 'Kunne ikke gemme — prøv igen' : ''}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+/** Pris, moms og betalingsfrist — kun for os. */
+function RetOkonomi({ kunde, adminKode, onRettet }) {
+  const ø = økonomiFor(kunde)
+  const [pris, setPris] = useState(kunde.pris ?? '')
+  const [momsPct, setMomsPct] = useState(ø.momsPct)
+  const [dage, setDage] = useState(ø.dage)
+  const [betalt, setBetalt] = useState(!!kunde.betalt)
+  const [gemmer, setGemmer] = useState(false)
+  const [fejl, setFejl] = useState(null)
+  const [kvittering, setKvittering] = useState(null)
+
+  async function gem() {
+    setGemmer(true); setFejl(null); setKvittering(null)
+    try {
+      onRettet?.(await opdaterKunde(adminKode, kunde.code, {
+        pris: pris === '' ? null : Number(pris),
+        momsPct: Number(momsPct),
+        betalingsdage: Number(dage) || 8,
+        betalt,
+      }))
+      setKvittering('Gemt')
+      setTimeout(() => setKvittering(null), 2600)
+    } catch (e) {
+      setFejl('Kunne ikke gemme: ' + e.message)
+    } finally { setGemmer(false) }
+  }
+
+  return (
+    <div className="block" style={{ marginTop: 18 }}>
+      <h3>Ret økonomien (kun os)</h3>
+      <div className="row2">
+        <div className="field">
+          <label htmlFor="ro-pris">Pris ekskl. moms</label>
+          <input id="ro-pris" inputMode="numeric" value={pris} onChange={e => setPris(e.target.value.replace(/[^\d]/g, ''))} />
+        </div>
+        <div className="field">
+          <label htmlFor="ro-moms">Moms i %</label>
+          <input id="ro-moms" inputMode="decimal" value={momsPct} onChange={e => setMomsPct(e.target.value.replace(',', '.'))} />
+        </div>
+        <div className="field">
+          <label htmlFor="ro-dage">Betalingsfrist (dage)</label>
+          <input id="ro-dage" inputMode="numeric" value={dage} onChange={e => setDage(e.target.value.replace(/\D/g, ''))} />
+        </div>
+        <div className="field">
+          <label htmlFor="ro-betalt">Status</label>
+          <select id="ro-betalt" value={betalt ? 'ja' : 'nej'} onChange={e => setBetalt(e.target.value === 'ja')}>
+            <option value="nej">Faktura sendt</option>
+            <option value="ja">Betalt</option>
+          </select>
+        </div>
+      </div>
+      <p className="hint" style={{ marginTop: -4, marginBottom: 8 }}>
+        Kunden ser: {kr(Number(pris || 0))} + {momsPct} % moms = <b>{kr(Number(pris || 0) + Math.round(Number(pris || 0) * Number(momsPct || 0)) / 100)}</b>
+      </p>
+      {fejl && <p style={{ color: 'var(--red)', fontSize: 14, marginTop: 8 }}>{fejl}</p>}
+      {kvittering && <p style={{ color: 'var(--green)', fontSize: 14, marginTop: 8 }}>{kvittering}</p>}
+      <div className="actions">
+        <button className="btn btn-primary" onClick={gem} disabled={gemmer}>{gemmer ? 'Gemmer …' : 'Gem'}</button>
+      </div>
+    </div>
   )
 }
 

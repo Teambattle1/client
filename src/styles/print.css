@@ -32,6 +32,20 @@
   display:grid;place-items:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .p-mærke-navn{font-size:8.5pt;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
 
+.p-over{display:block;font-size:8pt;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--p-orange);margin-bottom:1mm}
+
+/* morgenen: ankomst, kundens starttid og sms — én bjælke, stor skrift */
+.p-ankomst{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm;margin:0 0 5mm;
+  padding:3mm;border-radius:2mm;background:var(--p-flade);border:1px solid var(--p-linje);
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+.p-ankomst div{padding:1mm 2mm}
+.p-ankomst dt{font-size:7pt;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--p-dæmp)}
+.p-ankomst dd{margin:.8mm 0 0;font-size:15pt;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.p-ankomst small{display:block;font-size:8pt;color:var(--p-dæmp);margin-top:.6mm}
+.p-ankomst-sms{border-left:3px solid var(--p-orange);background:#fff}
+.p-ankomst-sms dd{color:var(--p-orange)}
+
 /* dagens fire tal øverst — det man kigger efter først */
 .p-fakta{display:grid;grid-template-columns:repeat(4,1fr);gap:4mm;margin:4mm 0 5mm}
 .p-fakta div{border:1px solid var(--p-linje);border-radius:2mm;padding:2.5mm 3mm}
