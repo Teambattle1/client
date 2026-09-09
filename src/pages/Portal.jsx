@@ -191,9 +191,21 @@ function KundeLogo({ kunde, adminKode, onRettet }) {
   const [fejl, setFejl] = useState(null)
   const [dødt, setDødt] = useState(false)
   const admin = !!adminKode
-  const logo = kunde.logoUrl && !dødt ? kunde.logoUrl : ''
 
-  if (!logo && !admin) return null
+  // To ting, ikke én: hvad der STÅR på kunden, og om det kan tegnes lige nu.
+  // Blandes de sammen, ser et gemt logo med en død adresse ud PRÆCIS som
+  // intet logo — og så tror man, gemningen ikke virkede.
+  const gemtLogo = kunde.logoUrl || ''
+  const kanVises = !!gemtLogo && !dødt
+  const ændret = valgt !== gemtLogo
+
+  // Et nyt logo er en ny chance. Uden det ville én død adresse skjule også
+  // den adresse, man lagde op bagefter.
+  useEffect(() => { setDødt(false) }, [gemtLogo])
+
+  // Kunden ser aldrig et ødelagt mærke — men admin skal kunne se, at der
+  // ligger et logo, også når det ikke kan hentes.
+  if (!kanVises && !admin) return null
 
   async function gem() {
     setGemmer(true); setFejl(null)
@@ -210,13 +222,20 @@ function KundeLogo({ kunde, adminKode, onRettet }) {
 
   return (
     <div className="hero-logo">
-      {logo
-        ? <span className="logo-plade"><img src={logo} alt={kunde.firma || ''} onError={() => setDødt(true)} /></span>
-        : <span className="logo-plade tom" aria-hidden="true"><Icon name="plus" size={18} color="currentColor" /></span>}
+      {kanVises
+        ? <span className="logo-plade"><img src={gemtLogo} alt={kunde.firma || ''} onError={() => setDødt(true)} /></span>
+        : <span className={'logo-plade tom' + (gemtLogo ? ' død' : '')} aria-hidden="true">
+            <Icon name={gemtLogo ? 'form' : 'plus'} size={18} color="currentColor" />
+          </span>}
       {admin && (
-        <button className="ghost-btn" onClick={() => { setValgt(kunde.logoUrl || ''); setÅben(true) }}>
-          {logo ? 'Skift logo' : 'Tilføj logo'}
-        </button>
+        <>
+          <button className="ghost-btn" onClick={() => { setValgt(kunde.logoUrl || ''); setÅben(true) }}>
+            {gemtLogo ? 'Skift logo' : 'Tilføj logo'}
+          </button>
+          {gemtLogo && !kanVises && (
+            <span className="logo-død-note">Logoet er gemt, men adressen svarer ikke. Kunden ser intet mærke.</span>
+          )}
+        </>
       )}
 
       {åben && (
@@ -235,8 +254,18 @@ function KundeLogo({ kunde, adminKode, onRettet }) {
             <div className="sheet-body">
               <LogoVaelger firma={kunde.firma} værdi={valgt} onÆndre={setValgt} kode={kunde.code} />
               {fejl && <p style={{ color: 'var(--red)', fontSize: 14, marginTop: 8 }}>{fejl}</p>}
+              {/* Gem er slukket, når der ikke er noget at gemme. Et forslag man
+                  kan SE, er ikke et forslag man har VALGT — og trykker man Gem
+                  uden at have trykket på et, skrev vi før et tomt logo og lukkede
+                  vinduet, som om det gik godt. At fjerne et logo tæller stadig
+                  som en ændring, så den vej ud er der endnu. */}
+              {!ændret && (
+                <p className="hint" style={{ marginTop: 10 }}>
+                  {valgt ? 'Logoet er allerede gemt.' : 'Tryk på et af forslagene, eller læg en fil op — så kan det gemmes.'}
+                </p>
+              )}
               <div className="actions" style={{ marginTop: 14 }}>
-                <button className="btn btn-primary" onClick={gem} disabled={gemmer}>
+                <button className="btn btn-primary" onClick={gem} disabled={gemmer || !ændret}>
                   {gemmer ? 'Gemmer …' : 'Gem'}
                 </button>
                 <button className="btn btn-quiet" onClick={() => setÅben(false)}>Fortryd</button>
