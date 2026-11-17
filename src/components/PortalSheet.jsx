@@ -236,7 +236,7 @@ function RetAktivitetsTekst({ valgt, akt, kunde, adminKode, onRettet, onGrundtek
     if (!window.confirm('Det her retter grundteksten i kataloget — for ALLE kunder med ' + (valgt.navn || 'aktiviteten') + '. Fortsæt?')) return
     setGemmer(true); setFejl(null)
     try {
-      await gemGrundtekst(valgt.id, tekst)
+      await gemGrundtekst(adminKode, valgt.id, tekst)
       onGrundtekst?.(tekst)
       // Kundens egen kopi fjernes: nu ER teksten grundteksten.
       const liste = aktiviteterFor(kunde).map(a => a.id === valgt.id ? { ...a, tekst: '' } : a)

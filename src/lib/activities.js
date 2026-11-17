@@ -66,12 +66,14 @@ export function grundtekst(aktivitet) {
  * ikke en rettelse til én dag. Skal teksten kun ændres for én kunde,
  * kopieres den over på kunden i stedet.
  */
-export async function gemGrundtekst(id, tekst) {
+export async function gemGrundtekst(adminKode, id, tekst) {
   if (!erKoblet) throw new Error('Der er ingen database koblet på.')
-  const { error } = await supabase
-    .from('ef_activities')
-    .update({ long_description: String(tekst || '').trim() })
-    .eq('id', id)
+  // Via funktion med adminkode-tjek: kataloget kan ikke længere rettes direkte med den offentlige nøgle.
+  const { error } = await supabase.rpc('portal_admin_activity_text', {
+    p_admin: adminKode,
+    p_id: id,
+    p_tekst: String(tekst || '').trim(),
+  })
   if (error) throw new Error(error.message)
 }
 
