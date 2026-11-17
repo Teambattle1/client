@@ -41,7 +41,7 @@ export default function PrintSide() {
         // stadig værd at printe, en side uden noget er ikke.
         const sted = (k.info && k.info.sted) || {}
         const vid = (sted.valg === 'vores' && sted.venueId) || (!sted.adresse && k.venueId) || ''
-        if (vid) hentVenue(vid).then(v => { if (!død) setVenue(v) }).catch(() => {})
+        if (vid) hentVenue(code, vid).then(v => { if (!død) setVenue(v) }).catch(() => {})
         if (k.aktivitetId) {
           hentAktivitet(k.aktivitetId).then(a => { if (!død) setAkt(a) }).catch(() => {})
         }

@@ -26,7 +26,7 @@ import { hentVenue, ankomstNote } from '../lib/venues'
  * deres eget svar.
  */
 
-export default function VenueVaelger({ værdi, onÆndre, voresSted }) {
+export default function VenueVaelger({ kode, værdi, onÆndre, voresSted }) {
   const v = værdi || {}
   const vores = voresSted && String(voresSted.sted || '').trim() ? voresSted : null
 
@@ -38,9 +38,9 @@ export default function VenueVaelger({ værdi, onÆndre, voresSted }) {
   useEffect(() => {
     if (!venueId) { setVenue(null); return }
     let død = false
-    hentVenue(venueId).then(x => { if (!død) setVenue(x) }).catch(() => { /* kortet og adressen står der stadig */ })
+    hentVenue(kode, venueId).then(x => { if (!død) setVenue(x) }).catch(() => { /* kortet og adressen står der stadig */ })
     return () => { død = true }
-  }, [venueId])
+  }, [kode, venueId])
 
   const [adrTekst, setAdrTekst] = useState(v.adresse || '')
   const [forslag, setForslag] = useState([])

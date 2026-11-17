@@ -40,12 +40,12 @@ export default function Admin({ adminKode, onLogUd }) {
     hentAktiviteter()
       .then(a => { if (!død) setAktiviteter(a) })
       .catch(() => { /* uden katalog: eventnavnet skrives i hånden */ })
-    hentMedarbejdere()
+    hentMedarbejdere(adminKode)
       .then(m => { if (!død) setFolk(m) })
       .catch(() => { /* uden medarbejderliste: sættes på bagefter */ })
     hentTidslinjeRammer().then(r => { if (!død) setRammer(r) })
     return () => { død = true }
-  }, [])
+  }, [adminKode])
 
   useEffect(() => { hent() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -173,7 +173,7 @@ export default function Admin({ adminKode, onLogUd }) {
           </div>
         )}
 
-        {opretter && <OpretForm onSubmit={gem} gemmer={gemmer} fejl={fejl} aktiviteter={aktiviteter} folk={folk} />}
+        {opretter && <OpretForm adminKode={adminKode} onSubmit={gem} gemmer={gemmer} fejl={fejl} aktiviteter={aktiviteter} folk={folk} />}
         {nyKunde && <Kvittering kunde={nyKunde} onLuk={() => setNyKunde(null)} onÅbn={() => navigate('/p/' + nyKunde.code)} />}
 
         {fjerner && (
@@ -262,7 +262,7 @@ export default function Admin({ adminKode, onLogUd }) {
   )
 }
 
-function OpretForm({ onSubmit, gemmer, fejl, aktiviteter, folk }) {
+function OpretForm({ adminKode, onSubmit, gemmer, fejl, aktiviteter, folk }) {
   const { typiske, øvrige } = planlæggerGrupper(folk || [])
   // Firmanavnet holdes her, så logo-søgningen kan gå i gang mens man taster.
   // Resten af formularen læses stadig som FormData ved indsendelse.
@@ -327,7 +327,7 @@ function OpretForm({ onSubmit, gemmer, fejl, aktiviteter, folk }) {
       </div>
       <div className="field">
         <label htmlFor="n-sted">Sted</label>
-        <StedVaelger værdi={sted} onÆndre={setSted} />
+        <StedVaelger adminKode={adminKode} værdi={sted} onÆndre={setSted} />
         <input type="hidden" name="sted" value={sted.sted || ''} />
         <input type="hidden" name="venueId" value={sted.venueId || ''} />
         <input type="hidden" name="stedLat" value={sted.lat ?? ''} />

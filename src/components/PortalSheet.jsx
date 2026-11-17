@@ -353,7 +353,7 @@ function Info({ felter, info, gemStatus, onInfo, admin, kunde }) {
             ? <span className="felt-titel">{f.label}{mangler && <em className="skal-mærke">Skal udfyldes</em>}</span>
             : <label htmlFor={'f-' + f.key}>{f.label}{mangler && <em className="skal-mærke">Skal udfyldes</em>}</label>}
           {f.type === 'venue' ? (
-            <VenueVaelger værdi={info[f.key]} onÆndre={v => onInfo(f.key, v)} admin={admin}
+            <VenueVaelger kode={kunde.code} værdi={info[f.key]} onÆndre={v => onInfo(f.key, v)} admin={admin}
                           voresSted={{ sted: kunde.sted || '', lat: kunde.stedLat ?? null, lon: kunde.stedLon ?? null,
                                        venueId: kunde.venueId || '', modested: kunde.modested || '' }} />
           ) : f.type === 'kontakt' ? (
@@ -457,11 +457,11 @@ function Location({ kunde, info, adminKode, onRettet }) {
     if (!venueId) { setVenue(null); return }
     let død = false
     setVenueFejl(false)
-    hentVenue(venueId)
+    hentVenue(kunde.code, venueId)
       .then(v => { if (!død) setVenue(v) })
       .catch(() => { if (!død) setVenueFejl(true) })
     return () => { død = true }
-  }, [venueId])
+  }, [kunde.code, venueId])
 
   const egen = svar.valg === 'egen'
   const adresse = venue ? venueAdresse(venue)
@@ -582,7 +582,7 @@ function RetSted({ kunde, adminKode, onRettet, venue }) {
   return (
     <div className="block" style={{ marginTop: 18 }}>
       <h3>Ret stedet (kun os)</h3>
-      <StedVaelger værdi={værdi} onÆndre={setVærdi} />
+      <StedVaelger adminKode={adminKode} værdi={værdi} onÆndre={setVærdi} />
       {værdi.sted && !værdi.venueId && (
         <p className="hint" style={{ marginTop: 8, color: 'var(--gold)' }}>
           Stedet står som en adresse, ikke som et af VORES steder. Så får kunden spørgsmålene om
@@ -938,9 +938,9 @@ function Kontakter({ kunde, info, adminKode, onRettet }) {
   useEffect(() => {
     if (svar.valg !== 'vores' || !svar.venueId) { setVenue(null); return }
     let død = false
-    hentVenue(svar.venueId).then(v => { if (!død) setVenue(v) }).catch(() => {})
+    hentVenue(kunde.code, svar.venueId).then(v => { if (!død) setVenue(v) }).catch(() => {})
     return () => { død = true }
-  }, [svar.valg, svar.venueId])
+  }, [kunde.code, svar.valg, svar.venueId])
 
   const konsulent = venue ? konferenceKontakt(venue) : null
   const gm = kunde.gamemaster || {}
@@ -1038,9 +1038,9 @@ function RetVoresFolk({ kunde, adminKode, onLuk, onRettet }) {
 
   useEffect(() => {
     let død = false
-    hentMedarbejdere().then(m => { if (!død) setFolk(m) }).catch(() => setFejl('Medarbejderlisten kunne ikke hentes.'))
+    hentMedarbejdere(adminKode).then(m => { if (!død) setFolk(m) }).catch(() => setFejl('Medarbejderlisten kunne ikke hentes.'))
     return () => { død = true }
-  }, [])
+  }, [adminKode])
 
   async function gem() {
     setGemmer(true); setFejl(null)

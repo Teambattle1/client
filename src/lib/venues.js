@@ -2,7 +2,12 @@ import { supabase, erKoblet } from './supabase'
 
 /**
  * Vores egne steder — samme `locations`-tabel som venue.eventday.dk skriver
- * i, samme database. Portalen LÆSER kun; stederne vedligeholdes ét sted.
+ * i, samme database.
+ *
+ * TABELLEN ER LUKKET for den offentlige nøgle (kun vores folk med SSO kan
+ * læse den direkte). Portalen går derfor altid gennem databasefunktionerne
+ * i migration 20261117150000: kunden får kun sit eget sted ud fra sin kode,
+ * listen og rettelserne kræver adminkoden.
  *
  * KUN aktive steder vises kunden. Tabellen er også et CRM: af 112 rækker er
  * 100 »lead« — steder vi er i gang med at få en aftale med — og én er
@@ -14,26 +19,20 @@ import { supabase, erKoblet } from './supabase'
 /** Rækkefølgen betyder noget: den første der passer, er den vi viser. */
 const KONFERENCE_TITLER = [/konference/i, /booking/i, /salg/i, /koordinator/i, /prim/i]
 
-/** De kolonner portalen bruger — læses OG skrives. Alt andet i tabellen
- *  (CRM-noter, afstande, scanningsregler) er venue-appens og rører vi ikke. */
-const VENUE_KOLONNER = 'id, name, address, postal_code, city, lat, lon, contacts, venue_type, logo_url, crm_status, adgang_note, phone, website'
-
 /** Status som den siges højt. »rejected« vises aldrig — de er ikke et sted. */
 export const STATUS_TEKST = { active: 'Aktiv', lead: 'På vej', dormant: 'Hvilende', rejected: 'Sagt nej' }
 export const STATUS_VALG = ['active', 'lead', 'dormant']
 
-export async function hentVenues({ alle = false } = {}) {
+/**
+ * Alle steder undtagen dem, der er sagt nej til — KUN til os (StedVaelger).
+ * Kræver adminkoden; tabellen er lukket for den offentlige nøgle, så listen
+ * kommer gennem `portal_admin_venues`. Kunden ser aldrig listen.
+ */
+export async function hentVenues(adminKode) {
   if (!erKoblet) return []
-  let q = supabase
-    .from('locations')
-    .select(VENUE_KOLONNER)
-  // Kunden ser KUN de aktive. Vi ser også dem, der er på vej — men aldrig
-  // dem, der er sagt nej til; de er ikke et sted, nogen skal vælge.
-  if (alle) q = q.neq('crm_status', 'rejected')
-  else q = q.eq('crm_status', 'active')
-  const { data, error } = await q.order('name', { ascending: true }).limit(400)
+  const { data, error } = await supabase.rpc('portal_admin_venues', { p_admin: adminKode })
   if (error) throw new Error(error.message)
-  return (data || []).filter(v => v && v.name)
+  return (Array.isArray(data) ? data : []).filter(v => v && v.name)
 }
 
 /** Er stedet klar til at blive brugt? Alt andet end »active« mangler noget. */
@@ -78,16 +77,22 @@ export function konferenceKontakt(v) {
   return alle[0]
 }
 
-/** Ét sted, til Location-arket. Svarer null hvis det ikke findes; kaster ved fejl
- *  — samme skel som resten af datalaget, så »ikke fundet« og »kunne ikke læses«
- *  ikke bliver til den samme tomme skærm. */
-export async function hentVenue(id) {
-  if (!erKoblet || !id) return null
-  const { data, error } = await supabase
-    .from('locations')
-    .select(VENUE_KOLONNER)
-    .eq('id', id)
-    .maybeSingle()
+/**
+ * Ét sted, set fra ÉN kundes side (Location, Kontakter, print).
+ *
+ * Går gennem `portal_venue_by_code`: databasen svarer kun, hvis stedet hører
+ * til netop den kundekode — sat af os, eller valgt af kunden blandt de aktive.
+ * Svaret er skåret til: navn, adresse, nål, ankomst-note og stedets ÉN
+ * konferencekontakt (som `contacts` med ét element, så `konferenceKontakt`
+ * virker uændret).
+ *
+ * Svarer null hvis det ikke findes; kaster ved fejl — samme skel som resten
+ * af datalaget, så »ikke fundet« og »kunne ikke læses« ikke bliver til den
+ * samme tomme skærm.
+ */
+export async function hentVenue(code, id) {
+  if (!erKoblet || !code || !id) return null
+  const { data, error } = await supabase.rpc('portal_venue_by_code', { p_code: code, p_venue_id: id })
   if (error) throw new Error(error.message)
   return data || null
 }
@@ -148,33 +153,28 @@ function tilRække(felter) {
  * Ret et sted — i den SAMME tabel venue-appen bruger, så rettelsen står
  * begge steder med det samme. Svarer med rækken som den ser ud nu.
  */
-export async function gemVenue(id, felter) {
+export async function gemVenue(adminKode, id, felter) {
   if (!erKoblet) throw new Error('Der er ingen database koblet på — stedet kan ikke gemmes.')
   if (!id) throw new Error('Stedet mangler et id.')
-  const række = { ...tilRække(felter), updated_at: new Date().toISOString() }
+  const række = tilRække(felter)
   if ('name' in række && !række.name) throw new Error('Stedet skal have et navn.')
-  const { data, error } = await supabase
-    .from('locations')
-    .update(række)
-    .eq('id', id)
-    .select(VENUE_KOLONNER)
-    .single()
+  const { data, error } = await supabase.rpc('portal_admin_venue_update', {
+    p_admin: adminKode, p_id: id, p_felter: række,
+  })
   if (error) throw new Error(error.message)
   return data
 }
 
 /** Opret et nyt sted. Det starter som »på vej«, medmindre man siger andet. */
-export async function opretVenue(felter) {
+export async function opretVenue(adminKode, felter) {
   if (!erKoblet) throw new Error('Der er ingen database koblet på — stedet kan ikke oprettes.')
   const række = { crm_status: 'lead', contacts: [], ...tilRække(felter) }
   if (!række.name) throw new Error('Stedet skal have et navn.')
   const id = (globalThis.crypto && crypto.randomUUID) ? crypto.randomUUID()
     : Math.random().toString(36).slice(2) + Date.now().toString(36)
-  const { data, error } = await supabase
-    .from('locations')
-    .insert({ id, ...række })
-    .select(VENUE_KOLONNER)
-    .single()
+  const { data, error } = await supabase.rpc('portal_admin_venue_create', {
+    p_admin: adminKode, p_id: id, p_felter: række,
+  })
   if (error) throw new Error(error.message)
   return data
 }

@@ -28,7 +28,7 @@ import { søgAdresse } from '../lib/address'
  * os, og et sted vi er i gang med at få en aftale med, er tit netop dét,
  * eventet skal ligge på.
  */
-export default function StedVaelger({ værdi, onÆndre }) {
+export default function StedVaelger({ adminKode, værdi, onÆndre }) {
   const v = værdi || {}
   const [visVenues, setVisVenues] = useState(false)
   const [venues, setVenues] = useState([])
@@ -65,11 +65,11 @@ export default function StedVaelger({ værdi, onÆndre }) {
   // at taste, ikke først når man klikker »Slå op«.
   useEffect(() => {
     let død = false
-    hentVenues({ alle: true })
+    hentVenues(adminKode)
       .then(l => { if (!død) { setVenues(l); setTilstand('klar') } })
       .catch(() => { if (!død) setTilstand('fejl') })
     return () => { død = true }
-  }, [])
+  }, [adminKode])
 
   useEffect(() => () => { clearTimeout(timer.current); afbryd.current?.abort() }, [])
 
@@ -258,7 +258,7 @@ export default function StedVaelger({ værdi, onÆndre }) {
       )}
 
       {retter && (
-        <VenueRet venue={retter.venue} startTekst={retter.startTekst ?? (v.venueId ? '' : (v.sted || ''))}
+        <VenueRet adminKode={adminKode} venue={retter.venue} startTekst={retter.startTekst ?? (v.venueId ? '' : (v.sted || ''))}
                   onLuk={() => setRetter(null)} onGemt={stedGemt} />
       )}
 

@@ -3,22 +3,21 @@ import { supabase, erKoblet } from './supabase'
 /**
  * Vores egne folk — `employees`, samme tabel som crew-systemet bruger.
  *
- * VI HENTER KUN FIRE FELTER. Rækken indeholder også fødselsdato, tøjstørrelse,
- * kørekortbilleder, lønniveau og mere af den slags. Intet af det har en kunde
- * noget at gøre med, og det skal derfor ikke hentes ned i deres browser —
- * heller ikke »bare for at have det«. Udvid aldrig denne select uden at have
- * en grund, en kunde ville kunne læse højt.
+ * KUN TIL OS: listen kræver adminkoden og hentes gennem databasefunktionen
+ * `portal_admin_employees` (migration 20261117150000). Tabellen er lukket for
+ * den offentlige nøgle; en kunde har heller ikke brug for listen — deres
+ * eventplanner og leadinstruktør står allerede på kunderækken.
+ *
+ * VI FÅR KUN FIRE FELTER (id, navn, email, telefon). Rækken indeholder også
+ * fødselsdato, tøjstørrelse, kørekortbilleder, lønniveau og mere af den slags.
+ * Funktionen sender aldrig mere — udvid den ikke uden en grund, en kunde
+ * ville kunne læse højt.
  */
-export async function hentMedarbejdere() {
+export async function hentMedarbejdere(adminKode) {
   if (!erKoblet) return []
-  const { data, error } = await supabase
-    .from('employees')
-    .select('id, navn, email, telefon')
-    .eq('status', 'aktiv')
-    .order('navn', { ascending: true })
-    .limit(200)
+  const { data, error } = await supabase.rpc('portal_admin_employees', { p_admin: adminKode })
   if (error) throw new Error(error.message)
-  return (data || []).filter(m => m && m.navn)
+  return (Array.isArray(data) ? data : []).filter(m => m && m.navn)
 }
 
 /**

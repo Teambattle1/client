@@ -19,7 +19,7 @@ import {
  * `venue` = null betyder »opret nyt«. Når det er gemt, kaldes `onGemt` med
  * rækken som den ser ud nu, så listen bagved kan følge med.
  */
-export default function VenueRet({ venue, onLuk, onGemt, startTekst = '' }) {
+export default function VenueRet({ adminKode, venue, onLuk, onGemt, startTekst = '' }) {
   const ny = !venue
   const kontakt = konferenceKontakt(venue) || {}
   const [f, setF] = useState({
@@ -88,7 +88,7 @@ export default function VenueRet({ venue, onLuk, onGemt, startTekst = '' }) {
         lat: f.lat, lon: f.lon, crm_status: f.crm_status, adgang_note: f.adgang_note, phone: f.phone,
         contacts: medKontakt(venue, { name: f.kName, title: f.kTitle, email: f.kEmail, mobile: f.kMobile }),
       }
-      const gemt = ny ? await opretVenue(felter) : await gemVenue(venue.id, felter)
+      const gemt = ny ? await opretVenue(adminKode, felter) : await gemVenue(adminKode, venue.id, felter)
       onGemt(gemt)
     } catch (err) {
       setFejl('Stedet blev ikke gemt: ' + err.message)
